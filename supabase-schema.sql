@@ -141,67 +141,67 @@ CREATE POLICY "Allow all operations for now" ON asset_maintenance FOR ALL USING 
 
 -- Insert sample departments
 INSERT INTO departments (name, description, location, manager) VALUES
-('IT Department', 'Information Technology department responsible for IT infrastructure, software development, and technical support.', 'Floor 1 - East Wing', 'John Doe'),
-('Human Resources', 'Human Resources department responsible for recruitment, employee relations, and HR operations.', 'Floor 2 - West Wing', 'Jane Smith'),
-('Finance & Accounting', 'Finance department responsible for financial planning, accounting, and budget management.', 'Floor 1 - West Wing', 'Mike Johnson'),
-('Operations', 'Operations department responsible for day-to-day business operations and process management.', 'Floor 3 - Central', 'Sarah Wilson'),
-('Marketing', 'Marketing department responsible for brand management, campaigns, and market research.', 'Floor 2 - East Wing', 'David Brown'),
-('Sales', 'Sales department responsible for customer acquisition and revenue generation.', 'Floor 3 - East Wing', 'Lisa Chen'),
-('Research & Development', 'R&D department responsible for innovation and product development.', 'Floor 4 - Central', 'Robert Taylor'),
-('Customer Support', 'Customer Support department responsible for customer service and technical support.', 'Floor 1 - Central', 'Emily Davis');
+('IT Department', 'Information Technology department responsible for IT infrastructure, software development, and technical support at Turnkey Africa.', 'Floor 1 - East Wing', 'John Odhiambo'),
+('Human Resources', 'Human Resources department responsible for recruitment, employee relations, and HR operations at Turnkey Africa.', 'Floor 2 - West Wing', 'Jane Wanjiku'),
+('Finance & Accounting', 'Finance department responsible for financial planning, accounting, and budget management at Turnkey Africa.', 'Floor 1 - West Wing', 'Mike Kamau'),
+('Operations', 'Operations department responsible for day-to-day business operations and process management at Turnkey Africa.', 'Floor 3 - Central', 'Sarah Akinyi'),
+('Marketing', 'Marketing department responsible for brand management, campaigns, and market research at Turnkey Africa.', 'Floor 2 - East Wing', 'David Mutua'),
+('Sales', 'Sales department responsible for customer acquisition and revenue generation at Turnkey Africa.', 'Floor 3 - East Wing', 'Lisa Nyambura'),
+('Research & Development', 'R&D department responsible for innovation and product development at Turnkey Africa.', 'Floor 4 - Central', 'Robert Kiprop'),
+('Customer Support', 'Customer Support department responsible for customer service and technical support at Turnkey Africa.', 'Floor 1 - Central', 'Emily Chebet');
 
 -- Insert sample users
 INSERT INTO users (email, name, role, department_id, phone, position) VALUES
-('admin@company.com', 'System Administrator', 'admin', NULL, '+1-555-0100', 'System Administrator'),
-('john.doe@company.com', 'John Doe', 'manager', (SELECT id FROM departments WHERE name = 'IT Department'), '+1-555-0101', 'IT Manager'),
-('jane.smith@company.com', 'Jane Smith', 'manager', (SELECT id FROM departments WHERE name = 'Human Resources'), '+1-555-0102', 'HR Manager'),
-('mike.johnson@company.com', 'Mike Johnson', 'manager', (SELECT id FROM departments WHERE name = 'Finance & Accounting'), '+1-555-0103', 'Finance Manager'),
-('sarah.wilson@company.com', 'Sarah Wilson', 'manager', (SELECT id FROM departments WHERE name = 'Operations'), '+1-555-0104', 'Operations Manager'),
-('david.brown@company.com', 'David Brown', 'manager', (SELECT id FROM departments WHERE name = 'Marketing'), '+1-555-0105', 'Marketing Manager'),
-('lisa.chen@company.com', 'Lisa Chen', 'manager', (SELECT id FROM departments WHERE name = 'Sales'), '+1-555-0106', 'Sales Manager'),
-('robert.taylor@company.com', 'Robert Taylor', 'manager', (SELECT id FROM departments WHERE name = 'Research & Development'), '+1-555-0107', 'R&D Manager'),
-('emily.davis@company.com', 'Emily Davis', 'manager', (SELECT id FROM departments WHERE name = 'Customer Support'), '+1-555-0108', 'Support Manager'),
-('alex.wong@company.com', 'Alex Wong', 'user', (SELECT id FROM departments WHERE name = 'IT Department'), '+1-555-0109', 'Software Developer'),
-('maria.garcia@company.com', 'Maria Garcia', 'user', (SELECT id FROM departments WHERE name = 'Human Resources'), '+1-555-0110', 'HR Specialist'),
-('james.lee@company.com', 'James Lee', 'user', (SELECT id FROM departments WHERE name = 'Finance & Accounting'), '+1-555-0111', 'Accountant'),
-('sophia.kim@company.com', 'Sophia Kim', 'user', (SELECT id FROM departments WHERE name = 'Operations'), '+1-555-0112', 'Operations Analyst');
+('admin@turnkeyafrica.com', 'System Administrator', 'admin', NULL, '+254-700-000-000', 'System Administrator'),
+('john.odhiambo@turnkeyafrica.com', 'John Odhiambo', 'manager', (SELECT id FROM departments WHERE name = 'IT Department'), '+254-700-000-001', 'IT Manager'),
+('jane.wanjiku@turnkeyafrica.com', 'Jane Wanjiku', 'manager', (SELECT id FROM departments WHERE name = 'Human Resources'), '+254-700-000-002', 'HR Manager'),
+('mike.kamau@turnkeyafrica.com', 'Mike Kamau', 'manager', (SELECT id FROM departments WHERE name = 'Finance & Accounting'), '+254-700-000-003', 'Finance Manager'),
+('sarah.akinyi@turnkeyafrica.com', 'Sarah Akinyi', 'manager', (SELECT id FROM departments WHERE name = 'Operations'), '+254-700-000-004', 'Operations Manager'),
+('david.mutua@turnkeyafrica.com', 'David Mutua', 'manager', (SELECT id FROM departments WHERE name = 'Marketing'), '+254-700-000-005', 'Marketing Manager'),
+('lisa.nyambura@turnkeyafrica.com', 'Lisa Nyambura', 'manager', (SELECT id FROM departments WHERE name = 'Sales'), '+254-700-000-006', 'Sales Manager'),
+('robert.kiprop@turnkeyafrica.com', 'Robert Kiprop', 'manager', (SELECT id FROM departments WHERE name = 'Research & Development'), '+254-700-000-007', 'R&D Manager'),
+('emily.chebet@turnkeyafrica.com', 'Emily Chebet', 'manager', (SELECT id FROM departments WHERE name = 'Customer Support'), '+254-700-000-008', 'Support Manager'),
+('alex.kipchirchir@turnkeyafrica.com', 'Alex Kipchirchir', 'user', (SELECT id FROM departments WHERE name = 'IT Department'), '+254-700-000-009', 'Software Developer'),
+('maria.wanjiru@turnkeyafrica.com', 'Maria Wanjiru', 'user', (SELECT id FROM departments WHERE name = 'Human Resources'), '+254-700-000-010', 'HR Specialist'),
+('james.kimani@turnkeyafrica.com', 'James Kimani', 'user', (SELECT id FROM departments WHERE name = 'Finance & Accounting'), '+254-700-000-011', 'Accountant'),
+('sophia.muthoni@turnkeyafrica.com', 'Sophia Muthoni', 'user', (SELECT id FROM departments WHERE name = 'Operations'), '+254-700-000-012', 'Operations Analyst');
 
 -- Update department managers
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'john.doe@company.com') WHERE name = 'IT Department';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'jane.smith@company.com') WHERE name = 'Human Resources';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'mike.johnson@company.com') WHERE name = 'Finance & Accounting';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'sarah.wilson@company.com') WHERE name = 'Operations';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'david.brown@company.com') WHERE name = 'Marketing';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'lisa.chen@company.com') WHERE name = 'Sales';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'robert.taylor@company.com') WHERE name = 'Research & Development';
-UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'emily.davis@company.com') WHERE name = 'Customer Support';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com') WHERE name = 'IT Department';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'jane.wanjiku@turnkeyafrica.com') WHERE name = 'Human Resources';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'mike.kamau@turnkeyafrica.com') WHERE name = 'Finance & Accounting';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'sarah.akinyi@turnkeyafrica.com') WHERE name = 'Operations';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'david.mutua@turnkeyafrica.com') WHERE name = 'Marketing';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'lisa.nyambura@turnkeyafrica.com') WHERE name = 'Sales';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'robert.kiprop@turnkeyafrica.com') WHERE name = 'Research & Development';
+UPDATE departments SET manager_id = (SELECT id FROM users WHERE email = 'emily.chebet@turnkeyafrica.com') WHERE name = 'Customer Support';
 
 -- Insert sample assets
 INSERT INTO assets (name, type, category, manufacturer, model, serial_number, purchase_date, purchase_price, current_value, status, condition, location, assigned_to, department_id, warranty_expiry, notes) VALUES
-('MacBook Pro 16"', 'Laptop', 'Computers', 'Apple', 'MacBook Pro 16" M2', 'MBP16-M2-001', '2024-01-15', 2499.00, 2200.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.doe@company.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-01-15', 'High-performance laptop for development work'),
-('Dell XPS 15', 'Laptop', 'Computers', 'Dell', 'XPS 15 9530', 'DLL-XPS15-001', '2024-02-01', 1899.00, 1700.00, 'active', 'good', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'alex.wong@company.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-02-01', 'Development laptop'),
-('iPhone 15 Pro', 'Mobile Device', 'Phones', 'Apple', 'iPhone 15 Pro', 'IPH15-PRO-001', '2024-01-20', 999.00, 900.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.doe@company.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-01-20', 'Company phone for IT manager'),
-('Samsung Galaxy S24', 'Mobile Device', 'Phones', 'Samsung', 'Galaxy S24', 'SMS-GS24-001', '2024-02-10', 799.00, 750.00, 'active', 'good', 'Floor 2 - West Wing', (SELECT id FROM users WHERE email = 'jane.smith@company.com'), (SELECT id FROM departments WHERE name = 'Human Resources'), '2027-02-10', 'HR manager phone'),
-('HP LaserJet Pro', 'Printer', 'Office Equipment', 'HP', 'LaserJet Pro M404n', 'HP-LJP-001', '2024-01-05', 299.00, 250.00, 'active', 'good', 'Floor 1 - Central', NULL, (SELECT id FROM departments WHERE name = 'Operations'), '2026-01-05', 'Shared office printer'),
-('Cisco Switch 48-Port', 'Network Equipment', 'Networking', 'Cisco', 'Catalyst 2960', 'CSC-SW48-001', '2024-01-10', 899.00, 800.00, 'active', 'excellent', 'Floor 1 - East Wing', NULL, (SELECT id FROM departments WHERE name = 'IT Department'), '2029-01-10', 'Core network switch'),
-('Office Desk', 'Furniture', 'Furniture', 'IKEA', 'BEKANT', 'IKEA-DSK-001', '2024-01-01', 199.00, 180.00, 'active', 'good', 'Floor 2 - West Wing', (SELECT id FROM users WHERE email = 'jane.smith@company.com'), (SELECT id FROM departments WHERE name = 'Human Resources'), NULL, 'Standard office desk'),
-('Office Chair', 'Furniture', 'Furniture', 'Herman Miller', 'Aeron', 'HM-CHAIR-001', '2024-01-01', 899.00, 850.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.doe@company.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2029-01-01', 'Ergonomic office chair'),
-('iPad Pro 12.9"', 'Tablet', 'Tablets', 'Apple', 'iPad Pro 12.9" M2', 'IPD-PRO-001', '2024-02-15', 1099.00, 1000.00, 'active', 'excellent', 'Floor 3 - East Wing', (SELECT id FROM users WHERE email = 'lisa.chen@company.com'), (SELECT id FROM departments WHERE name = 'Sales'), '2027-02-15', 'Sales presentation tablet'),
-('External Monitor 27"', 'Monitor', 'Displays', 'LG', '27UL850-W', 'LG-MON-001', '2024-01-25', 399.00, 350.00, 'active', 'good', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'alex.wong@company.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2026-01-25', 'Dual monitor setup');
+('MacBook Pro 16"', 'Laptop', 'Computers', 'Apple', 'MacBook Pro 16" M2', 'MBP16-M2-001', '2024-01-15', 2499.00, 2200.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-01-15', 'High-performance laptop for development work at Turnkey Africa'),
+('Dell XPS 15', 'Laptop', 'Computers', 'Dell', 'XPS 15 9530', 'DLL-XPS15-001', '2024-02-01', 1899.00, 1700.00, 'active', 'good', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-02-01', 'Development laptop for Turnkey Africa'),
+('iPhone 15 Pro', 'Mobile Device', 'Phones', 'Apple', 'iPhone 15 Pro', 'IPH15-PRO-001', '2024-01-20', 999.00, 900.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2027-01-20', 'Company phone for IT manager at Turnkey Africa'),
+('Samsung Galaxy S24', 'Mobile Device', 'Phones', 'Samsung', 'Galaxy S24', 'SMS-GS24-001', '2024-02-10', 799.00, 750.00, 'active', 'good', 'Floor 2 - West Wing', (SELECT id FROM users WHERE email = 'jane.wanjiku@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'Human Resources'), '2027-02-10', 'HR manager phone for Turnkey Africa'),
+('HP LaserJet Pro', 'Printer', 'Office Equipment', 'HP', 'LaserJet Pro M404n', 'HP-LJP-001', '2024-01-05', 299.00, 250.00, 'active', 'good', 'Floor 1 - Central', NULL, (SELECT id FROM departments WHERE name = 'Operations'), '2026-01-05', 'Shared office printer at Turnkey Africa'),
+('Cisco Switch 48-Port', 'Network Equipment', 'Networking', 'Cisco', 'Catalyst 2960', 'CSC-SW48-001', '2024-01-10', 899.00, 800.00, 'active', 'excellent', 'Floor 1 - East Wing', NULL, (SELECT id FROM departments WHERE name = 'IT Department'), '2029-01-10', 'Core network switch for Turnkey Africa'),
+('Office Desk', 'Furniture', 'Furniture', 'IKEA', 'BEKANT', 'IKEA-DSK-001', '2024-01-01', 199.00, 180.00, 'active', 'good', 'Floor 2 - West Wing', (SELECT id FROM users WHERE email = 'jane.wanjiku@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'Human Resources'), NULL, 'Standard office desk at Turnkey Africa'),
+('Office Chair', 'Furniture', 'Furniture', 'Herman Miller', 'Aeron', 'HM-CHAIR-001', '2024-01-01', 899.00, 850.00, 'active', 'excellent', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2029-01-01', 'Ergonomic office chair for Turnkey Africa'),
+('iPad Pro 12.9"', 'Tablet', 'Tablets', 'Apple', 'iPad Pro 12.9" M2', 'IPD-PRO-001', '2024-02-15', 1099.00, 1000.00, 'active', 'excellent', 'Floor 3 - East Wing', (SELECT id FROM users WHERE email = 'lisa.nyambura@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'Sales'), '2027-02-15', 'Sales presentation tablet for Turnkey Africa'),
+('External Monitor 27"', 'Monitor', 'Displays', 'LG', '27UL850-W', 'LG-MON-001', '2024-01-25', 399.00, 350.00, 'active', 'good', 'Floor 1 - East Wing', (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), (SELECT id FROM departments WHERE name = 'IT Department'), '2026-01-25', 'Dual monitor setup for Turnkey Africa');
 
 -- Insert sample issues
 INSERT INTO issues (title, description, status, priority, category, reported_by, assigned_to, asset_id, department_id, estimated_resolution_date) VALUES
-('Printer not working', 'HP LaserJet Pro is showing offline status and cannot print documents.', 'open', 'medium', 'Hardware Issue', (SELECT id FROM users WHERE email = 'sarah.wilson@company.com'), (SELECT id FROM users WHERE email = 'alex.wong@company.com'), (SELECT id FROM assets WHERE serial_number = 'HP-LJP-001'), (SELECT id FROM departments WHERE name = 'Operations'), '2024-03-20'),
-('Network connectivity issues', 'Some users on Floor 2 are experiencing slow internet connection.', 'in_progress', 'high', 'Network Issue', (SELECT id FROM users WHERE email = 'david.brown@company.com'), (SELECT id FROM users WHERE email = 'john.doe@company.com'), NULL, (SELECT id FROM departments WHERE name = 'Marketing'), '2024-03-18'),
-('Software license expired', 'Adobe Creative Suite license has expired and needs renewal.', 'open', 'medium', 'Software Issue', (SELECT id FROM users WHERE email = 'emily.davis@company.com'), (SELECT id FROM users WHERE email = 'john.doe@company.com'), NULL, (SELECT id FROM departments WHERE name = 'Customer Support'), '2024-03-25'),
-('Laptop battery replacement', 'MacBook Pro battery is draining quickly and needs replacement.', 'scheduled', 'low', 'Hardware Issue', (SELECT id FROM users WHERE email = 'john.doe@company.com'), (SELECT id FROM users WHERE email = 'alex.wong@company.com'), (SELECT id FROM assets WHERE serial_number = 'MBP16-M2-001'), (SELECT id FROM departments WHERE name = 'IT Department'), '2024-03-30'),
-('Email server down', 'Company email server is not responding, affecting all departments.', 'resolved', 'critical', 'System Issue', (SELECT id FROM users WHERE email = 'admin@company.com'), (SELECT id FROM users WHERE email = 'john.doe@company.com'), NULL, (SELECT id FROM departments WHERE name = 'IT Department'), '2024-03-15');
+('Printer not working', 'HP LaserJet Pro is showing offline status and cannot print documents at Turnkey Africa.', 'open', 'medium', 'Hardware Issue', (SELECT id FROM users WHERE email = 'sarah.akinyi@turnkeyafrica.com'), (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), (SELECT id FROM assets WHERE serial_number = 'HP-LJP-001'), (SELECT id FROM departments WHERE name = 'Operations'), '2024-03-20'),
+('Network connectivity issues', 'Some users on Floor 2 are experiencing slow internet connection at Turnkey Africa.', 'in_progress', 'high', 'Network Issue', (SELECT id FROM users WHERE email = 'david.mutua@turnkeyafrica.com'), (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), NULL, (SELECT id FROM departments WHERE name = 'Marketing'), '2024-03-18'),
+('Software license expired', 'Adobe Creative Suite license has expired and needs renewal at Turnkey Africa.', 'open', 'medium', 'Software Issue', (SELECT id FROM users WHERE email = 'emily.chebet@turnkeyafrica.com'), (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), NULL, (SELECT id FROM departments WHERE name = 'Customer Support'), '2024-03-25'),
+('Laptop battery replacement', 'MacBook Pro battery is draining quickly and needs replacement at Turnkey Africa.', 'scheduled', 'low', 'Hardware Issue', (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), (SELECT id FROM assets WHERE serial_number = 'MBP16-M2-001'), (SELECT id FROM departments WHERE name = 'IT Department'), '2024-03-30'),
+('Email server down', 'Turnkey Africa email server is not responding, affecting all departments.', 'resolved', 'critical', 'System Issue', (SELECT id FROM users WHERE email = 'admin@turnkeyafrica.com'), (SELECT id FROM users WHERE email = 'john.odhiambo@turnkeyafrica.com'), NULL, (SELECT id FROM departments WHERE name = 'IT Department'), '2024-03-15');
 
 -- Insert sample maintenance records
 INSERT INTO asset_maintenance (asset_id, maintenance_type, description, performed_by, performed_date, cost, next_maintenance_date) VALUES
-((SELECT id FROM assets WHERE serial_number = 'CSC-SW48-001'), 'Preventive Maintenance', 'Regular network switch maintenance and firmware update', (SELECT id FROM users WHERE email = 'alex.wong@company.com'), '2024-02-15', 150.00, '2024-05-15'),
-((SELECT id FROM assets WHERE serial_number = 'HP-LJP-001'), 'Repair', 'Fixed paper jam and replaced toner cartridge', (SELECT id FROM users WHERE email = 'alex.wong@company.com'), '2024-03-10', 75.00, '2024-06-10'),
-((SELECT id FROM assets WHERE serial_number = 'HM-CHAIR-001'), 'Inspection', 'Regular ergonomic chair inspection and adjustment', (SELECT id FROM users WHERE email = 'jane.smith@company.com'), '2024-02-20', 25.00, '2024-05-20');
+((SELECT id FROM assets WHERE serial_number = 'CSC-SW48-001'), 'Preventive Maintenance', 'Regular network switch maintenance and firmware update at Turnkey Africa', (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), '2024-02-15', 150.00, '2024-05-15'),
+((SELECT id FROM assets WHERE serial_number = 'HP-LJP-001'), 'Repair', 'Fixed paper jam and replaced toner cartridge at Turnkey Africa', (SELECT id FROM users WHERE email = 'alex.kipchirchir@turnkeyafrica.com'), '2024-03-10', 75.00, '2024-06-10'),
+((SELECT id FROM assets WHERE serial_number = 'HM-CHAIR-001'), 'Inspection', 'Regular ergonomic chair inspection and adjustment at Turnkey Africa', (SELECT id FROM users WHERE email = 'jane.wanjiku@turnkeyafrica.com'), '2024-02-20', 25.00, '2024-05-20');
 
 -- =====================================================
 -- UPDATE COUNTS AND VALUES

@@ -70,7 +70,7 @@ export const generateMockAssets = (count = 50) => {
     const assignedUser = status === 'Assigned' ? {
       id: `U-${Math.floor(Math.random() * 1000)}`,
       name: `User ${Math.floor(Math.random() * 100)}`,
-      email: `user${Math.floor(Math.random() * 100)}@turnkey.com`
+      email: `user${Math.floor(Math.random() * 100)}@turnkeyafrica.com`
     } : null;
     assets.push({
       id: `A-${i + 1}`,
@@ -87,7 +87,7 @@ export const generateMockAssets = (count = 50) => {
       condition,
       assignedUser,
       image,
-      notes: `This is a ${condition.toLowerCase()} condition ${manufacturer} ${assetType}.`
+      notes: `This is a ${condition.toLowerCase()} condition ${manufacturer} ${assetType} at Turnkey Africa.`
     });
   }
   return assets;
@@ -110,7 +110,7 @@ export const generateMockIssues = (assets, count = 30) => {
     issues.push({
       id: `I-${i + 1}`,
       title: `${type} - ${asset.name}`,
-      description: `Issue with ${asset.name}: ${type.toLowerCase()} needs attention.`,
+      description: `Issue with ${asset.name}: ${type.toLowerCase()} needs attention at Turnkey Africa.`,
       assetId: asset.id,
       assetName: asset.name,
       assetImage: asset.image,
@@ -120,19 +120,19 @@ export const generateMockIssues = (assets, count = 30) => {
       createdBy: asset.assignedUser ? asset.assignedUser : {
         id: `U-${Math.floor(Math.random() * 1000)}`,
         name: `User ${Math.floor(Math.random() * 100)}`,
-        email: `user${Math.floor(Math.random() * 100)}@turnkey.com`
+        email: `user${Math.floor(Math.random() * 100)}@turnkeyafrica.com`
       },
       assignedTo: status !== 'Open' ? {
         id: `U-${Math.floor(Math.random() * 1000)}`,
         name: `IT Support ${Math.floor(Math.random() * 10)}`,
-        email: `support${Math.floor(Math.random() * 10)}@turnkey.com`
+        email: `support${Math.floor(Math.random() * 10)}@turnkeyafrica.com`
       } : null,
       createdAt: createdDate.toISOString(),
       updatedAt: updatedDate.toISOString(),
       resolvedAt: resolvedDate ? resolvedDate.toISOString() : null,
       comments: [{
         id: `C-${i}-1`,
-        text: `Reported ${type.toLowerCase()} issue with the ${asset.name}.`,
+        text: `Reported ${type.toLowerCase()} issue with the ${asset.name} at Turnkey Africa.`,
         createdBy: asset.assignedUser ? asset.assignedUser.name : `User ${Math.floor(Math.random() * 100)}`,
         createdAt: createdDate.toISOString()
       }]
@@ -168,11 +168,11 @@ export const generateMockUsers = (count = 20) => {
   users.push({
     id: 'U-admin',
     name: 'Admin User',
-    email: 'admin@turnkey.com',
+    email: 'admin@turnkeyafrica.com',
     role: 'admin',
     department: 'IT',
     position: 'IT Administrator',
-    phone: '555-123-4567',
+    phone: '+254-700-000-000',
     image: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1160&q=80'
   });
   // Add regular users
@@ -182,11 +182,11 @@ export const generateMockUsers = (count = 20) => {
     users.push({
       id: `U-${i + 1}`,
       name: `User ${i + 1}`,
-      email: `user${i + 1}@turnkey.com`,
+      email: `user${i + 1}@turnkeyafrica.com`,
       role,
       department,
       position: `${department} ${role === 'department_officer' ? 'Manager' : 'Staff'}`,
-      phone: `555-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+      phone: `+254-700-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
       image: `https://i.pravatar.cc/150?img=${i + 10}`
     });
   }
