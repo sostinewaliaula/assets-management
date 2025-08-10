@@ -20,7 +20,6 @@ const DepartmentManagement: React.FC = () => {
     name: '',
     description: '',
     location: '',
-    budget: '',
     manager: ''
   });
   useEffect(() => {
@@ -45,7 +44,6 @@ const DepartmentManagement: React.FC = () => {
             location: ['Floor 1', 'Floor 2', 'Floor 3', 'Remote'][Math.floor(Math.random() * 4)],
             userCount: deptUsers.length,
             assetCount: deptAssets.length,
-            budget: `$${Math.floor(Math.random() * 900000) + 100000}`,
             assetValue: `$${totalAssetValue}`,
             manager: manager ? manager.name : 'Unassigned',
             managerId: manager ? manager.id : null,
@@ -115,7 +113,6 @@ const DepartmentManagement: React.FC = () => {
       location: newDepartment.location,
       userCount: 0,
       assetCount: 0,
-      budget: newDepartment.budget,
       assetValue: '$0',
       manager: newDepartment.manager || 'Unassigned',
       managerId: null,
@@ -129,7 +126,6 @@ const DepartmentManagement: React.FC = () => {
       name: '',
       description: '',
       location: '',
-      budget: '',
       manager: ''
     });
     // Show a notification
@@ -148,7 +144,6 @@ const DepartmentManagement: React.FC = () => {
       name: newDepartment.name,
       description: newDepartment.description,
       location: newDepartment.location,
-      budget: newDepartment.budget,
       manager: newDepartment.manager || dept.manager
     } : dept);
     setDepartmentData(updatedDepartments);
@@ -159,7 +154,6 @@ const DepartmentManagement: React.FC = () => {
       name: '',
       description: '',
       location: '',
-      budget: '',
       manager: ''
     });
     // Show a notification
@@ -312,7 +306,6 @@ const DepartmentManagement: React.FC = () => {
               <th scope="col" className="px-6 py-3">Users</th>
               <th scope="col" className="px-6 py-3">Assets</th>
               <th scope="col" className="px-6 py-3">Location</th>
-              <th scope="col" className="px-6 py-3">Budget</th>
               <th scope="col" className="px-6 py-3">Actions</th>
                 </tr>
               </thead>
@@ -347,10 +340,9 @@ const DepartmentManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">{dept.location}</td>
-                    <td className="px-6 py-4">{dept.budget}</td>
                     <td className="px-6 py-4">
                       <div className="flex space-x-2">
-                  <button onClick={() => { setSelectedDepartment(dept); setNewDepartment({ name: dept.name, description: dept.description, location: dept.location, budget: dept.budget, manager: dept.manager !== 'Unassigned' ? dept.manager : '' }); setShowEditDepartmentModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit Department"><EditIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setSelectedDepartment(dept); setNewDepartment({ name: dept.name, description: dept.description, location: dept.location, manager: dept.manager !== 'Unassigned' ? dept.manager : '' }); setShowEditDepartmentModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit Department"><EditIcon className="w-5 h-5" /></button>
                   <button onClick={() => { setSelectedDepartment(dept); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete Department"><TrashIcon className="w-5 h-5" /></button>
                       </div>
                     </td>
@@ -395,13 +387,9 @@ const DepartmentManagement: React.FC = () => {
               <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. Floor 2" value={newDepartment.location} onChange={e => setNewDepartment({ ...newDepartment, location: e.target.value })} required />
                 </div>
                 <div>
-              <label className="block mb-2 text-sm font-medium text-primary">Budget</label>
-              <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. $100,000" value={newDepartment.budget} onChange={e => setNewDepartment({ ...newDepartment, budget: e.target.value })} required />
+              <label className="block mb-2 text-sm font-medium text-primary">Department Manager</label>
+              <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Manager Name (optional)" value={newDepartment.manager} onChange={e => setNewDepartment({ ...newDepartment, manager: e.target.value })} />
                 </div>
-              </div>
-              <div className="mb-4">
-            <label className="block mb-2 text-sm font-medium text-primary">Department Manager</label>
-            <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Manager Name (optional)" value={newDepartment.manager} onChange={e => setNewDepartment({ ...newDepartment, manager: e.target.value })} />
               </div>
               <div className="flex justify-end space-x-2">
             <button type="button" onClick={() => setShowAddDepartmentModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
@@ -456,22 +444,13 @@ const DepartmentManagement: React.FC = () => {
                 </div>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Budget
+                    Department Manager
                   </label>
-                  <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="e.g. $100,000" value={newDepartment.budget} onChange={e => setNewDepartment({
+                  <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="Manager Name (optional)" value={newDepartment.manager} onChange={e => setNewDepartment({
                 ...newDepartment,
-                budget: e.target.value
-              })} required />
+                manager: e.target.value
+              })} />
                 </div>
-              </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Department Manager
-                </label>
-                <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="Manager Name (optional)" value={newDepartment.manager} onChange={e => setNewDepartment({
-              ...newDepartment,
-              manager: e.target.value
-            })} />
               </div>
               <div className="flex justify-end space-x-2">
                 <button type="button" onClick={() => {
