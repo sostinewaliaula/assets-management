@@ -84,7 +84,7 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-        <AuthProvider>
+      <AuthProvider>
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -106,14 +106,14 @@ function App() {
                 </Route>
                 <Route path="shared">
                   <Route path="asset/:id" element={<AssetDetails />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="notifications" element={<NotificationsPage />} />
                 </Route>
               </Route>
             </Routes>
           </Router>
         </AuthProvider>
       </NotificationProvider>
-    </ThemeProvider>
+          </ThemeProvider>
   );
 }
 

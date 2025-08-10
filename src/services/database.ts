@@ -12,6 +12,17 @@ export const departmentService = {
     return data || []
   },
 
+  async getById(id: string): Promise<Department | null> {
+    const { data, error } = await supabase
+      .from('departments')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
   async create(department: Omit<Department, 'id' | 'created_at' | 'updated_at'>): Promise<Department> {
     const { data, error } = await supabase
       .from('departments')
@@ -55,6 +66,17 @@ export const assetService = {
     
     if (error) throw error
     return data || []
+  },
+
+  async getById(id: string): Promise<Asset | null> {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
   },
 
   async getByDepartment(departmentId: string): Promise<Asset[]> {
@@ -113,6 +135,17 @@ export const userService = {
     return data || []
   },
 
+  async getById(id: string): Promise<User | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
   async getByDepartment(departmentId: string): Promise<User[]> {
     const { data, error } = await supabase
       .from('users')
@@ -163,6 +196,28 @@ export const issueService = {
     const { data, error } = await supabase
       .from('issues')
       .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getById(id: string): Promise<Issue | null> {
+    const { data, error } = await supabase
+      .from('issues')
+      .select('*')
+      .eq('id', id)
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getByAsset(assetId: string): Promise<Issue[]> {
+    const { data, error } = await supabase
+      .from('issues')
+      .select('*')
+      .eq('asset_id', assetId)
       .order('created_at', { ascending: false })
     
     if (error) throw error

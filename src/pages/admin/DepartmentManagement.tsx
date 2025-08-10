@@ -24,23 +24,23 @@ const DepartmentManagement: React.FC = () => {
   });
 
   // Fetch departments from database
-  const fetchData = async () => {
-    try {
+    const fetchData = async () => {
+      try {
       setLoading(true);
       const departments = await departmentService.getAll();
       setDepartmentData(departments);
       setFilteredDepartments(departments);
-    } catch (error) {
-      console.error('Error fetching department data:', error);
-      addNotification({
-        title: 'Error',
+      } catch (error) {
+        console.error('Error fetching department data:', error);
+        addNotification({
+          title: 'Error',
         message: 'Failed to load department data. Please check your database connection.',
-        type: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+          type: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     fetchData();
@@ -86,38 +86,38 @@ const DepartmentManagement: React.FC = () => {
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Create the new department object
-      const departmentToAdd = {
-        name: newDepartment.name,
-        description: newDepartment.description,
-        location: newDepartment.location,
+    // Create the new department object
+    const departmentToAdd = {
+      name: newDepartment.name,
+      description: newDepartment.description,
+      location: newDepartment.location,
         user_count: 0,
         asset_count: 0,
         asset_value: '$0',
-        manager: newDepartment.manager || 'Unassigned',
+      manager: newDepartment.manager || 'Unassigned',
         manager_id: null
-      };
+    };
 
       const newDepartmentData = await departmentService.create(departmentToAdd);
       
-      // Add the new department to the list
+    // Add the new department to the list
       setDepartmentData([...departmentData, newDepartmentData]);
       
-      // Close the modal and reset the form
-      setShowAddDepartmentModal(false);
-      setNewDepartment({
-        name: '',
-        description: '',
-        location: '',
-        manager: ''
-      });
+    // Close the modal and reset the form
+    setShowAddDepartmentModal(false);
+    setNewDepartment({
+      name: '',
+      description: '',
+      location: '',
+      manager: ''
+    });
       
-      // Show a notification
-      addNotification({
-        title: 'Department Added',
+    // Show a notification
+    addNotification({
+      title: 'Department Added',
         message: `New department "${newDepartmentData.name}" has been added successfully`,
-        type: 'success'
-      });
+      type: 'success'
+    });
     } catch (error) {
       console.error('Error adding department:', error);
       addNotification({
@@ -135,9 +135,9 @@ const DepartmentManagement: React.FC = () => {
     try {
       // Update the department in the database
       const updatedDepartment = await departmentService.update(selectedDepartment.id, {
-        name: newDepartment.name,
-        description: newDepartment.description,
-        location: newDepartment.location,
+      name: newDepartment.name,
+      description: newDepartment.description,
+      location: newDepartment.location,
         manager: newDepartment.manager || selectedDepartment.manager
       });
 
@@ -145,25 +145,25 @@ const DepartmentManagement: React.FC = () => {
       const updatedDepartments = departmentData.map(dept => 
         dept.id === selectedDepartment.id ? updatedDepartment : dept
       );
-      setDepartmentData(updatedDepartments);
+    setDepartmentData(updatedDepartments);
       setFilteredDepartments(updatedDepartments);
       
-      // Close the modal and reset the form
-      setShowEditDepartmentModal(false);
-      setSelectedDepartment(null);
-      setNewDepartment({
-        name: '',
-        description: '',
-        location: '',
-        manager: ''
-      });
+    // Close the modal and reset the form
+    setShowEditDepartmentModal(false);
+    setSelectedDepartment(null);
+    setNewDepartment({
+      name: '',
+      description: '',
+      location: '',
+      manager: ''
+    });
       
-      // Show a notification
-      addNotification({
-        title: 'Department Updated',
+    // Show a notification
+    addNotification({
+      title: 'Department Updated',
         message: `Department "${updatedDepartment.name}" has been updated successfully`,
-        type: 'success'
-      });
+      type: 'success'
+    });
     } catch (error) {
       console.error('Error updating department:', error);
       addNotification({
@@ -181,21 +181,21 @@ const DepartmentManagement: React.FC = () => {
       // Delete the department from the database
       await departmentService.delete(selectedDepartment.id);
       
-      // Filter out the selected department
-      const updatedDepartments = departmentData.filter(dept => dept.id !== selectedDepartment.id);
-      setDepartmentData(updatedDepartments);
+    // Filter out the selected department
+    const updatedDepartments = departmentData.filter(dept => dept.id !== selectedDepartment.id);
+    setDepartmentData(updatedDepartments);
       setFilteredDepartments(updatedDepartments);
       
-      // Show a notification
-      addNotification({
-        title: 'Department Deleted',
-        message: `Department "${selectedDepartment.name}" has been deleted`,
-        type: 'info'
-      });
+    // Show a notification
+    addNotification({
+      title: 'Department Deleted',
+      message: `Department "${selectedDepartment.name}" has been deleted`,
+      type: 'info'
+    });
       
-      // Close the modal and reset the selected department
-      setShowDeleteModal(false);
-      setSelectedDepartment(null);
+    // Close the modal and reset the selected department
+    setShowDeleteModal(false);
+    setSelectedDepartment(null);
     } catch (error) {
       console.error('Error deleting department:', error);
       addNotification({
@@ -214,7 +214,7 @@ const DepartmentManagement: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading departments...</p>
+        <p className="mt-4 text-gray-600">Loading departments...</p>
         </div>
       </div>
     );
@@ -234,14 +234,14 @@ const DepartmentManagement: React.FC = () => {
         >
           <PlusIcon className="w-5 h-5 mr-2" />
           Add Department
-        </button>
-      </div>
+          </button>
+        </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            <div className="relative">
+        <div className="relative">
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
@@ -250,7 +250,7 @@ const DepartmentManagement: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
-            </div>
+          </div>
             <select
               value={filterLocation}
               onChange={(e) => setFilterLocation(e.target.value)}
@@ -283,35 +283,35 @@ const DepartmentManagement: React.FC = () => {
       </div>
 
       {/* Departments List */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-primary">All Departments</h2>
+          <h2 className="text-xl font-bold text-primary">All Departments</h2>
             <span className="px-3 py-1 text-sm font-medium text-primary bg-lightgreen rounded-full">
               {filteredDepartments.length} departments
             </span>
-          </div>
+        </div>
         </div>
         
         {filteredDepartments.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
-              <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
-                <tr>
-                  <th scope="col" className="px-6 py-3">Department</th>
-                  <th scope="col" className="px-6 py-3">Manager</th>
-                  <th scope="col" className="px-6 py-3">Users</th>
-                  <th scope="col" className="px-6 py-3">Assets</th>
-                  <th scope="col" className="px-6 py-3">Location</th>
-                  <th scope="col" className="px-6 py-3">Actions</th>
+        <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
+          <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
+            <tr>
+              <th scope="col" className="px-6 py-3">Department</th>
+              <th scope="col" className="px-6 py-3">Manager</th>
+              <th scope="col" className="px-6 py-3">Users</th>
+              <th scope="col" className="px-6 py-3">Assets</th>
+              <th scope="col" className="px-6 py-3">Location</th>
+              <th scope="col" className="px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDepartments.map(dept => (
                   <tr key={dept.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
-                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
+              <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="p-2 mr-3 text-secondary bg-lightpurple rounded-full">
+                  <div className="p-2 mr-3 text-secondary bg-lightpurple rounded-full">
                           <BuildingIcon className="w-5 h-5" />
                         </div>
                         <div>
@@ -324,7 +324,7 @@ const DepartmentManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
-                        <div className="p-1 mr-2 text-gray-400 bg-lightgreen rounded-full">
+                  <div className="p-1 mr-2 text-gray-400 bg-lightgreen rounded-full">
                           <UsersIcon className="w-4 h-4" />
                         </div>
                         <span>{dept.manager}</span>
@@ -384,8 +384,8 @@ const DepartmentManagement: React.FC = () => {
             {searchTerm ? (
               <>
                 <AlertCircleIcon className="w-16 h-16 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-700">No matching departments found</h3>
-                <p className="mt-2 text-sm text-gray-500">Try adjusting your search criteria</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-700">No matching departments found</h3>
+          <p className="mt-2 text-sm text-gray-500">Try adjusting your search criteria</p>
                 <button
                   onClick={() => setSearchTerm('')}
                   className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90"
@@ -396,8 +396,8 @@ const DepartmentManagement: React.FC = () => {
             ) : (
               <>
                 <BuildingIcon className="w-16 h-16 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-700">No departments found</h3>
-                <p className="mt-2 text-sm text-gray-500">Get started by adding your first department</p>
+          <h3 className="mt-4 text-lg font-medium text-gray-700">No departments found</h3>
+          <p className="mt-2 text-sm text-gray-500">Get started by adding your first department</p>
                 <button
                   onClick={() => setShowAddDepartmentModal(true)}
                   className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90"
@@ -413,9 +413,9 @@ const DepartmentManagement: React.FC = () => {
       {/* Add Department Modal */}
       {showAddDepartmentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+      <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-primary">Add New Department</h3>
+          <h3 className="text-xl font-bold text-primary">Add New Department</h3>
               <button
                 onClick={() => setShowAddDepartmentModal(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -425,7 +425,7 @@ const DepartmentManagement: React.FC = () => {
             </div>
             <form onSubmit={handleAddDepartment}>
               <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Department Name</label>
+            <label className="block mb-2 text-sm font-medium text-primary">Department Name</label>
                 <input
                   type="text"
                   className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -436,7 +436,7 @@ const DepartmentManagement: React.FC = () => {
                 />
               </div>
               <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Description</label>
+            <label className="block mb-2 text-sm font-medium text-primary">Description</label>
                 <textarea
                   className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   placeholder="Brief description of the department"
@@ -567,7 +567,7 @@ const DepartmentManagement: React.FC = () => {
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                 <TrashIcon className="h-6 w-6 text-red-600" />
-              </div>
+            </div>
               <h3 className="mt-4 text-lg font-medium text-gray-900">Delete Department</h3>
               <p className="mt-2 text-sm text-gray-500">
                 Are you sure you want to delete "{selectedDepartment.name}"? This action cannot be undone.
@@ -587,8 +587,8 @@ const DepartmentManagement: React.FC = () => {
                 Cancel
               </button>
             </div>
+            </div>
           </div>
-        </div>
       )}
     </div>
   );

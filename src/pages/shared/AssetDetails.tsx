@@ -3,20 +3,17 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
-import { generateMockAssets, generateMockIssues } from '../../utils/mockData';
+import { assetService, userService, departmentService } from '../../services/database';
+import { Asset, User, Department } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
+
 const AssetDetails: React.FC = () => {
-  const {
-    assetId
-  } = useParams();
-  const {
-    user
-  } = useAuth();
-  const {
-    addNotification
-  } = useNotifications();
-  const [asset, setAsset] = useState(null);
-  const [issues, setIssues] = useState([]);
+  const { assetId } = useParams();
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  const [asset, setAsset] = useState<Asset | null>(null);
+  const [assignedUser, setAssignedUser] = useState<User | null>(null);
+  const [department, setDepartment] = useState<Department | null>(null);
   const [loading, setLoading] = useState(true);
   const [showIssueForm, setShowIssueForm] = useState(false);
   const [newIssue, setNewIssue] = useState({
@@ -26,16 +23,36 @@ const AssetDetails: React.FC = () => {
     priority: 'Medium'
   });
   const isAdmin = user?.role === 'admin';
+
   useEffect(() => {
     const fetchAssetDetails = async () => {
       try {
-        // In a real app, this would be API calls
-        const mockAssets = generateMockAssets(50);
-        const foundAsset = mockAssets.find(a => a.id === assetId);
-        if (foundAsset) {
-          setAsset(foundAsset);
-          const mockIssues = generateMockIssues(mockAssets).filter(issue => issue.assetId === assetId);
-          setIssues(mockIssues);
+        if (!assetId) return;
+        
+        // Fetch asset details from database
+        const assetData = await assetService.getById(assetId);
+        if (assetData) {
+          setAsset(assetData);
+          
+          // Fetch assigned user if asset is assigned
+          if (assetData.assigned_to) {
+            try {
+              const userData = await userService.getById(assetData.assigned_to);
+              setAssignedUser(userData);
+            } catch (error) {
+              console.error('Error fetching assigned user:', error);
+            }
+          }
+          
+          // Fetch department if asset has a department
+          if (assetData.department_id) {
+            try {
+              const deptData = await departmentService.getById(assetData.department_id);
+              setDepartment(deptData);
+            } catch (error) {
+              console.error('Error fetching department:', error);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching asset details:', error);
@@ -48,6 +65,7 @@ const AssetDetails: React.FC = () => {
         setLoading(false);
       }
     };
+    
     fetchAssetDetails();
   }, [assetId, addNotification]);
   const handleIssueSubmit = e => {
@@ -157,7 +175,7 @@ const AssetDetails: React.FC = () => {
             <span className="text-gray-400">•</span>
             <span className="text-sm text-gray-600">{asset.manufacturer}</span>
             <span className="text-gray-400">•</span>
-            <span className="text-sm text-gray-600">SN: {asset.serialNumber}</span>
+            <span className="text-sm text-gray-600">SN: {asset.serial_number}</span>
           </div>
           <div className="mt-2">{getConditionBadge(asset.condition)}</div>
         </div>
@@ -184,21 +202,21 @@ const AssetDetails: React.FC = () => {
                 <TagIcon className="w-5 h-5 mr-2 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Serial Number</span>
               </div>
-              <p className="text-sm text-gray-600">{asset.serialNumber}</p>
+              <p className="text-sm text-gray-600">{asset.serial_number}</p>
             </div>
             <div className="p-4 bg-lightgreen rounded-xl">
               <div className="flex items-center mb-2">
                 <CalendarIcon className="w-5 h-5 mr-2 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Purchase Date</span>
               </div>
-              <p className="text-sm text-gray-600">{formatDate(asset.purchaseDate)}</p>
+              <p className="text-sm text-gray-600">{formatDate(asset.purchase_date)}</p>
             </div>
             <div className="p-4 bg-lightgreen rounded-xl">
               <div className="flex items-center mb-2">
                 <ClockIcon className="w-5 h-5 mr-2 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Warranty End</span>
               </div>
-              <p className="text-sm text-gray-600">{formatDate(asset.warrantyEndDate)}</p>
+              <p className="text-sm text-gray-600">{formatDate(asset.warranty_end_date)}</p>
             </div>
             <div className="p-4 bg-lightgreen rounded-xl">
               <div className="flex items-center mb-2">
@@ -212,7 +230,7 @@ const AssetDetails: React.FC = () => {
                 <UserIcon className="w-5 h-5 mr-2 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Assigned To</span>
               </div>
-              <p className="text-sm text-gray-600">{asset.assignedUser ? asset.assignedUser.name : 'Unassigned'}</p>
+              <p className="text-sm text-gray-600">{assignedUser?.name || 'Unassigned'}</p>
             </div>
             <div className="p-4 bg-lightgreen rounded-xl">
               <div className="flex items-center mb-2">
@@ -276,16 +294,16 @@ const AssetDetails: React.FC = () => {
           </div>
         </div>
         {/* Assigned User */}
-        {asset.assignedUser && <div className="p-6 mt-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+        {assignedUser && <div className="p-6 mt-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
           <h2 className="mb-4 text-xl font-bold text-primary">Assigned User</h2>
           <div className="flex items-center p-4 bg-lightgreen dark:bg-gray-800 rounded-xl">
             <div className="p-2 mr-4 text-gray-400 bg-lightgreen dark:bg-gray-800 rounded-full">
               <UserIcon className="w-8 h-8" />
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-800">{asset.assignedUser.name}</h3>
-              <p className="text-xs text-gray-600">{asset.assignedUser.email}</p>
-              <p className="mt-1 text-xs text-gray-500">{asset.department}</p>
+              <h3 className="text-sm font-medium text-gray-800">{assignedUser.name}</h3>
+              <p className="text-xs text-gray-600">{assignedUser.email}</p>
+              <p className="mt-1 text-xs text-gray-500">{department?.name}</p>
             </div>
           </div>
         </div>}
@@ -295,12 +313,12 @@ const AssetDetails: React.FC = () => {
           <div className="p-4 bg-lightgreen rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Status</span>
-              {new Date(asset.warrantyEndDate) > new Date() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
+              {new Date(asset.warranty_end_date) > new Date() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
             </div>
             <div className="mt-3 space-y-2">
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Purchase Date</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.purchaseDate)}</span></div>
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Warranty End</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.warrantyEndDate)}</span></div>
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warrantyEndDate) > new Date() ? Math.ceil((new Date(asset.warrantyEndDate) - new Date()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Purchase Date</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.purchase_date)}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Warranty End</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.warranty_end_date)}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warranty_end_date) > new Date() ? Math.ceil((new Date(asset.warranty_end_date) - new Date()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
             </div>
           </div>
         </div>
