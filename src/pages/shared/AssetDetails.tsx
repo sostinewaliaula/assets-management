@@ -3,8 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
-import { assetService, userService, departmentService } from '../../services/database';
-import { Asset, User, Department } from '../../lib/supabase';
+import { assetService, userService, departmentService, issueService } from '../../services/database';
+import { Asset, User, Department, Issue } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 
 const AssetDetails: React.FC = () => {
@@ -22,6 +22,7 @@ const AssetDetails: React.FC = () => {
     type: 'Hardware Failure',
     priority: 'Medium'
   });
+  const [issues, setIssues] = useState<Issue[]>([]);
   const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
@@ -52,6 +53,13 @@ const AssetDetails: React.FC = () => {
             } catch (error) {
               console.error('Error fetching department:', error);
             }
+          }
+          // Fetch issues for this asset
+          try {
+            const issuesData = await issueService.getByAsset(assetId);
+            setIssues(issuesData);
+          } catch (error) {
+            console.error('Error fetching issues:', error);
           }
         }
       } catch (error) {
@@ -96,6 +104,7 @@ const AssetDetails: React.FC = () => {
       }]
     };
     setIssues([newIssueObj, ...issues]);
+    issueService.create(newIssueObj); // Persist the new issue
     addNotification({
       title: 'Issue Created',
       message: `New issue created for ${asset.name}`,
@@ -165,7 +174,7 @@ const AssetDetails: React.FC = () => {
     <div className="flex flex-col justify-between p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card md:flex-row md:items-center">
       <div className="flex items-center">
         <div className="relative">
-          <img src={asset.image} alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
+          <img src={asset.image || 'https://via.placeholder.com/150'} alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
           <div className="absolute bottom-0 right-0">{getStatusBadge(asset.status)}</div>
         </div>
         <div className="ml-4">
@@ -216,7 +225,7 @@ const AssetDetails: React.FC = () => {
                 <ClockIcon className="w-5 h-5 mr-2 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">Warranty End</span>
               </div>
-              <p className="text-sm text-gray-600">{formatDate(asset.warranty_end_date)}</p>
+              <p className="text-sm text-gray-600">{formatDate(asset.warranty_expiry)}</p>
             </div>
             <div className="p-4 bg-lightgreen rounded-xl">
               <div className="flex items-center mb-2">
@@ -313,12 +322,12 @@ const AssetDetails: React.FC = () => {
           <div className="p-4 bg-lightgreen rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Status</span>
-              {new Date(asset.warranty_end_date) > new Date() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
+              {new Date(asset.warranty_expiry) > new Date() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
             </div>
             <div className="mt-3 space-y-2">
               <div className="flex justify-between"><span className="text-xs text-gray-600">Purchase Date</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.purchase_date)}</span></div>
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Warranty End</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.warranty_end_date)}</span></div>
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warranty_end_date) > new Date() ? Math.ceil((new Date(asset.warranty_end_date) - new Date()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Warranty End</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.warranty_expiry)}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warranty_expiry) > new Date() ? Math.ceil((new Date(asset.warranty_expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
             </div>
           </div>
         </div>

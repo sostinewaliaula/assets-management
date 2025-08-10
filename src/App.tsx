@@ -96,6 +96,7 @@ function App() {
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="users" element={<UserManagement />} />
                   <Route path="assets" element={<AssetManagement />} />
+                  <Route path="assets/edit/:assetId" element={<AssetManagement editMode={true} />} />
                   <Route path="departments" element={<DepartmentManagement />} />
                   <Route path="issues" element={<IssueManagement />} />
                 </Route>
@@ -104,6 +105,7 @@ function App() {
                   <Route path="assets" element={<UserAssets />} />
                   <Route path="issues" element={<UserIssues />} />
                 </Route>
+                <Route path="assets/:assetId" element={<AssetDetails />} />
                 <Route path="shared">
                   <Route path="asset/:id" element={<AssetDetails />} />
                 <Route path="notifications" element={<NotificationsPage />} />
