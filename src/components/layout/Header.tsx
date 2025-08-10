@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MenuIcon, BellIcon, SunIcon, MoonIcon, UserIcon } from 'lucide-react';
 import NotificationDropdown from '../ui/NotificationDropdown';
+import DatabaseStatus from '../ui/DatabaseStatus';
 interface HeaderProps {
   toggleSidebar: () => void;
 }
@@ -30,8 +31,16 @@ const Header: React.FC<HeaderProps> = ({
         <span className="text-2xl font-bold" style={{ color: '#219653' }}>Assets -</span>
         <span className="text-2xl font-bold ml-1" style={{ color: '#9B51E0' }}>Management</span>
       </Link>
+      
+      {/* Database Status */}
+      <div className="flex-1 flex justify-center">
+        <DatabaseStatus className="hidden lg:flex" />
+      </div>
+      
       <div className="flex items-center">
-        {/* Notifications and Profile (unchanged) */}
+        {/* Database Status - Mobile */}
+        <DatabaseStatus className="lg:hidden mr-4" />
+        
         {/* Theme toggler */}
         <button onClick={toggleTheme} className="p-2 mr-5 rounded-full focus:outline-none focus:ring-2 focus:ring-secondary bg-gray-100 dark:bg-gray-800 transition-colors duration-200" aria-label="Toggle color mode">
           {isDark ? <SunIcon className="w-5 h-5 text-yellow-400" /> : <MoonIcon className="w-5 h-5 text-gray-600" />}
