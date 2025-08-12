@@ -5,7 +5,8 @@ import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, Re
 import { generateMockAssets, generateMockIssues, issueStatuses } from '../../utils/mockData';
 const IssueManagement: React.FC = () => {
   const {
-    addNotification
+    addNotification,
+    addToast
   } = useNotifications();
   const [issues, setIssues] = useState([]);
   const [filteredIssues, setFilteredIssues] = useState([]);
@@ -31,6 +32,11 @@ const IssueManagement: React.FC = () => {
       } catch (error) {
         console.error('Error fetching issues:', error);
         addNotification({
+          title: 'Error',
+          message: 'Failed to load issues',
+          type: 'error'
+        });
+        addToast({
           title: 'Error',
           message: 'Failed to load issues',
           type: 'error'
@@ -108,6 +114,11 @@ const IssueManagement: React.FC = () => {
       message: `Comment added to issue "${selectedIssue.title}"`,
       type: 'success'
     });
+    addToast({
+      title: 'Comment Added',
+      message: `Comment added to issue "${selectedIssue.title}"`,
+      type: 'success'
+    });
   };
   const handleUpdateStatus = () => {
     if (!selectedIssue || !newStatus || newStatus === selectedIssue.status) return;
@@ -130,6 +141,11 @@ const IssueManagement: React.FC = () => {
     setNewStatus('');
     // Show a notification
     addNotification({
+      title: 'Status Updated',
+      message: `Status of issue "${selectedIssue.title}" updated to "${newStatus}"`,
+      type: 'success'
+    });
+    addToast({
       title: 'Status Updated',
       message: `Status of issue "${selectedIssue.title}" updated to "${newStatus}"`,
       type: 'success'

@@ -5,7 +5,7 @@ import { departmentService, userService, assetService } from '../../services/dat
 import { Department } from '../../lib/supabase';
 
 const DepartmentManagement: React.FC = () => {
-  const { addNotification } = useNotifications();
+  const { addNotification, addToast } = useNotifications();
   const [departmentData, setDepartmentData] = useState<Department[]>([]);
   const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +35,11 @@ const DepartmentManagement: React.FC = () => {
         addNotification({
           title: 'Error',
         message: 'Failed to load department data. Please check your database connection.',
+          type: 'error'
+        });
+        addToast({
+          title: 'Error',
+          message: 'Failed to load department data. Please check your database connection.',
           type: 'error'
         });
       } finally {
@@ -118,9 +123,19 @@ const DepartmentManagement: React.FC = () => {
         message: `New department "${newDepartmentData.name}" has been added successfully`,
       type: 'success'
     });
+    addToast({
+      title: 'Department Added',
+      message: `New department "${newDepartmentData.name}" has been added successfully`,
+      type: 'success'
+    });
     } catch (error) {
       console.error('Error adding department:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to add department. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to add department. Please check your database connection.',
         type: 'error'
@@ -164,9 +179,19 @@ const DepartmentManagement: React.FC = () => {
         message: `Department "${updatedDepartment.name}" has been updated successfully`,
       type: 'success'
     });
+    addToast({
+      title: 'Department Updated',
+      message: `Department "${updatedDepartment.name}" has been updated successfully`,
+      type: 'success'
+    });
     } catch (error) {
       console.error('Error updating department:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to update department. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to update department. Please check your database connection.',
         type: 'error'
@@ -192,6 +217,11 @@ const DepartmentManagement: React.FC = () => {
       message: `Department "${selectedDepartment.name}" has been deleted`,
       type: 'info'
     });
+    addToast({
+      title: 'Department Deleted',
+      message: `Department "${selectedDepartment.name}" has been deleted`,
+      type: 'success'
+    });
       
     // Close the modal and reset the selected department
     setShowDeleteModal(false);
@@ -199,6 +229,11 @@ const DepartmentManagement: React.FC = () => {
     } catch (error) {
       console.error('Error deleting department:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to delete department. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to delete department. Please check your database connection.',
         type: 'error'

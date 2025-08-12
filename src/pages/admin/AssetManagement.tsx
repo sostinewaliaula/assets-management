@@ -13,7 +13,7 @@ const assetStatuses = ['Available', 'Assigned', 'In Maintenance', 'Reserved', 'D
 const assetConditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'];
 
 const AssetManagement: React.FC = () => {
-  const { addNotification } = useNotifications();
+  const { addNotification, addToast } = useNotifications();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -66,6 +66,11 @@ const AssetManagement: React.FC = () => {
         addNotification({
           title: 'Error',
         message: 'Failed to load asset data. Please check your database connection.',
+          type: 'error'
+        });
+        addToast({
+          title: 'Error',
+          message: 'Failed to load asset data. Please check your database connection.',
           type: 'error'
         });
       } finally {
@@ -161,9 +166,19 @@ const AssetManagement: React.FC = () => {
         message: `New asset "${newAssetData.name}" has been added successfully`,
         type: 'success'
       });
+      addToast({
+        title: 'Asset Added',
+        message: `New asset "${newAssetData.name}" has been added successfully`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error adding asset:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to add asset. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to add asset. Please check your database connection.',
         type: 'error'
@@ -195,9 +210,19 @@ const AssetManagement: React.FC = () => {
         message: `Asset "${updatedAsset.name}" has been updated successfully`,
       type: 'success'
     });
+      addToast({
+        title: 'Asset Updated',
+        message: `Asset "${updatedAsset.name}" has been updated successfully`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error updating asset:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to update asset. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to update asset. Please check your database connection.',
         type: 'error'
@@ -222,6 +247,11 @@ const AssetManagement: React.FC = () => {
       message: `Asset "${selectedAsset.name}" has been deleted`,
       type: 'info'
     });
+    addToast({
+      title: 'Asset Deleted',
+      message: `Asset "${selectedAsset.name}" has been deleted`,
+      type: 'success'
+    });
       
     // Close the modal and reset the selected asset
     setShowDeleteModal(false);
@@ -229,6 +259,11 @@ const AssetManagement: React.FC = () => {
     } catch (error) {
       console.error('Error deleting asset:', error);
       addNotification({
+        title: 'Error',
+        message: 'Failed to delete asset. Please check your database connection.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Failed to delete asset. Please check your database connection.',
         type: 'error'

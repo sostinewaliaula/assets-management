@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import Toast from './Toast';
 
 interface ToastNotification {
@@ -16,15 +16,9 @@ interface ToastContainerProps {
 
 const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismiss }) => {
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((toast, index) => (
-        <div
-          key={toast.id}
-          style={{
-            transform: `translateY(${index * 80}px)`,
-            zIndex: 1000 - index
-          }}
-        >
+    <div className="fixed top-4 right-4 z-50 flex flex-col items-end gap-2">
+      {toasts.map((toast) => (
+        <div key={toast.id} className="w-full">
           <Toast
             id={toast.id}
             title={toast.title}

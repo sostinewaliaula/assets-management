@@ -9,7 +9,8 @@ const UserIssues: React.FC = () => {
     user
   } = useAuth();
   const {
-    addNotification
+    addNotification,
+    addToast
   } = useNotifications();
   const [assets, setAssets] = useState([]);
   const [issues, setIssues] = useState([]);
@@ -39,6 +40,11 @@ const UserIssues: React.FC = () => {
       } catch (error) {
         console.error('Error fetching data:', error);
         addNotification({
+          title: 'Error',
+          message: 'Failed to load issues',
+          type: 'error'
+        });
+        addToast({
           title: 'Error',
           message: 'Failed to load issues',
           type: 'error'
@@ -73,6 +79,11 @@ const UserIssues: React.FC = () => {
     const selectedAsset = assets.find(asset => asset.id === newIssue.assetId);
     if (!selectedAsset) {
       addNotification({
+        title: 'Error',
+        message: 'Please select a valid asset',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: 'Please select a valid asset',
         type: 'error'
@@ -118,6 +129,11 @@ const UserIssues: React.FC = () => {
     setShowNewIssueForm(false);
     // Show a notification
     addNotification({
+      title: 'Issue Created',
+      message: `New issue created for ${selectedAsset.name}`,
+      type: 'success'
+    });
+    addToast({
       title: 'Issue Created',
       message: `New issue created for ${selectedAsset.name}`,
       type: 'success'

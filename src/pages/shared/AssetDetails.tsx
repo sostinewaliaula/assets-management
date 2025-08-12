@@ -10,7 +10,7 @@ import QRCode from 'react-qr-code';
 const AssetDetails: React.FC = () => {
   const { assetId } = useParams();
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
+  const { addNotification, addToast } = useNotifications();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [assignedUser, setAssignedUser] = useState<User | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -69,6 +69,11 @@ const AssetDetails: React.FC = () => {
           message: 'Failed to load asset details',
           type: 'error'
         });
+        addToast({
+          title: 'Error',
+          message: 'Failed to load asset details',
+          type: 'error'
+        });
       } finally {
         setLoading(false);
       }
@@ -106,6 +111,11 @@ const AssetDetails: React.FC = () => {
     setIssues([newIssueObj, ...issues]);
     issueService.create(newIssueObj); // Persist the new issue
     addNotification({
+      title: 'Issue Created',
+      message: `New issue created for ${asset.name}`,
+      type: 'success'
+    });
+    addToast({
       title: 'Issue Created',
       message: `New issue created for ${asset.name}`,
       type: 'success'

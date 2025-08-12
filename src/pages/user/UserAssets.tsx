@@ -9,7 +9,8 @@ const UserAssets: React.FC = () => {
     user
   } = useAuth();
   const {
-    addNotification
+    addNotification,
+    addToast
   } = useNotifications();
   const [assets, setAssets] = useState([]);
   const [filteredAssets, setFilteredAssets] = useState([]);
@@ -28,6 +29,11 @@ const UserAssets: React.FC = () => {
       } catch (error) {
         console.error('Error fetching assets:', error);
         addNotification({
+          title: 'Error',
+          message: 'Failed to load assets',
+          type: 'error'
+        });
+        addToast({
           title: 'Error',
           message: 'Failed to load assets',
           type: 'error'
@@ -89,7 +95,10 @@ const UserAssets: React.FC = () => {
         <h2 className="mb-4 text-xl font-bold text-primary">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Link to="/my-issues" className="button-primary flex items-center justify-center"> <AlertCircleIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">View My Issues</span> </Link>
-          <button onClick={() => { addNotification({ title: 'Request Submitted', message: 'Your request for a new asset has been submitted', type: 'success' }); }} className="button-primary flex items-center justify-center"> <MonitorIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Request New Asset</span> </button>
+          <button onClick={() => { 
+            addNotification({ title: 'Request Submitted', message: 'Your request for a new asset has been submitted', type: 'success' }); 
+            addToast({ title: 'Request Submitted', message: 'Your request for a new asset has been submitted', type: 'success' }); 
+          }} className="button-primary flex items-center justify-center"> <MonitorIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Request New Asset</span> </button>
           <Link to="/" className="button-primary flex items-center justify-center"> <ArrowRightIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Back to Dashboard</span> </Link>
         </div>
       </div>
@@ -161,7 +170,10 @@ const UserAssets: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <Link to={`/assets/${asset.id}`} className="button-primary px-3 py-1 text-xs font-medium">View Details</Link>
-                    <button onClick={() => { addNotification({ title: 'Issue Reported', message: `Issue reported for ${asset.name}`, type: 'info' }); }} className="px-3 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 rounded-full hover:bg-yellow-200">Report Issue</button>
+                    <button onClick={() => { 
+                      addNotification({ title: 'Issue Reported', message: `Issue reported for ${asset.name}`, type: 'info' }); 
+                      addToast({ title: 'Issue Reported', message: `Issue reported for ${asset.name}`, type: 'info' }); 
+                    }} className="px-3 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 rounded-full hover:bg-yellow-200">Report Issue</button>
                   </div>
                 </td>
               </tr>)}

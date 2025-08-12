@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { userService } from '../../services/database';
 const UserManagement: React.FC = () => {
   const {
-    addNotification
+    addNotification,
+    addToast
   } = useNotifications();
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -139,9 +140,19 @@ const UserManagement: React.FC = () => {
         message: `New user "${newUser.name}" has been added successfully`,
         type: 'success'
       });
+      addToast({
+        title: 'User Added',
+        message: `New user "${newUser.name}" has been added successfully`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error creating user:', error);
       addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to create user. Please try again.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: error.message || 'Failed to create user. Please try again.',
         type: 'error'
@@ -207,9 +218,19 @@ const UserManagement: React.FC = () => {
         message: `User "${newUser.name}" has been updated successfully`,
         type: 'success'
       });
+      addToast({
+        title: 'User Updated',
+        message: `User "${newUser.name}" has been updated successfully`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error updating user:', error);
       addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to update user. Please try again.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: error.message || 'Failed to update user. Please try again.',
         type: 'error'
@@ -240,12 +261,22 @@ const UserManagement: React.FC = () => {
         message: `User "${selectedUser.name}" has been deleted successfully`,
         type: 'info'
       });
+      addToast({
+        title: 'User Deleted',
+        message: `User "${selectedUser.name}" has been deleted successfully`,
+        type: 'success'
+      });
       
       setShowDeleteModal(false);
       setSelectedUser(null);
     } catch (error) {
       console.error('Error deleting user:', error);
       addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to delete user. Please try again.',
+        type: 'error'
+      });
+      addToast({
         title: 'Error',
         message: error.message || 'Failed to delete user. Please try again.',
         type: 'error'

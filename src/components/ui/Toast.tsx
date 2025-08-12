@@ -62,13 +62,13 @@ const Toast: React.FC<ToastProps> = ({ id, title, message, type, onDismiss, dura
   return (
     <div
       className={`
-        fixed top-4 right-4 z-50 max-w-sm w-full
+        max-w-sm w-full
         transform transition-all duration-300 ease-in-out
         ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
       `}
     >
       <div className={`
-        p-4 rounded-lg border shadow-lg
+        p-4 rounded-lg border shadow-lg bg-white dark:bg-gray-800
         ${getBgColor()}
       `}>
         <div className="flex items-start">
