@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { MonitorIcon, AlertCircleIcon, UserIcon, BuildingIcon, ArrowRightIcon, CheckCircleIcon, ArchiveIcon, ClockIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { generateMockAssets, generateMockIssues, generateMockUsers, departments, assetTypes } from '../../utils/mockData';
 const AdminDashboard: React.FC = () => {
+  const { addToast } = useNotifications();
   const [assets, setAssets] = useState([]);
   const [issues, setIssues] = useState([]);
   const [users, setUsers] = useState([]);
@@ -25,14 +27,26 @@ const AdminDashboard: React.FC = () => {
         setUsers(mockUsers);
         // Process data for charts
         processChartData(mockAssets, mockIssues);
+        addToast({
+          title: 'Dashboard Loaded',
+          message: 'Dashboard data has been loaded successfully.',
+          type: 'success',
+          duration: 2000
+        });
       } catch (error) {
         console.error('Error fetching data:', error);
+        addToast({
+          title: 'Error',
+          message: 'Failed to load dashboard data.',
+          type: 'error',
+          duration: 5000
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [addToast]);
   const processChartData = (assets, issues) => {
     // Assets by department
     const deptCounts = {};

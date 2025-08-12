@@ -7,13 +7,24 @@ interface Notification {
   read: boolean;
   createdAt: Date;
 }
+interface ToastNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
+}
+
 interface NotificationContextType {
   notifications: Notification[];
+  toasts: ToastNotification[];
   unreadCount: number;
   addNotification: (notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) => void;
+  addToast: (toast: Omit<ToastNotification, 'id'>) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
+  dismissToast: (id: string) => void;
 }
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 export const useNotifications = () => {
@@ -29,6 +40,7 @@ export const NotificationProvider: React.FC<{
   children
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   // Update unread count whenever notifications change
   useEffect(() => {
@@ -58,6 +70,20 @@ export const NotificationProvider: React.FC<{
       read: true
     })));
   };
+  // Add a toast notification
+  const addToast = (toast: Omit<ToastNotification, 'id'>) => {
+    const newToast: ToastNotification = {
+      ...toast,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    };
+    setToasts(prev => [...prev, newToast]);
+  };
+
+  // Dismiss a toast
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
   // Clear all notifications
   const clearNotifications = () => {
     setNotifications([]);
@@ -81,11 +107,14 @@ export const NotificationProvider: React.FC<{
   }, []);
   const value = {
     notifications,
+    toasts,
     unreadCount,
     addNotification,
+    addToast,
     markAsRead,
     markAllAsRead,
-    clearNotifications
+    clearNotifications,
+    dismissToast
   };
   return <NotificationContext.Provider value={value}>
       {children}

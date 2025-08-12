@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { MailIcon, SunIcon, MoonIcon } from 'lucide-react';
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +16,7 @@ const ForgotPassword: React.FC = () => {
     theme,
     toggleTheme
   } = useTheme();
+  const { addToast } = useNotifications();
   const isDark = theme === 'dark';
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +26,20 @@ const ForgotPassword: React.FC = () => {
     try {
       await forgotPassword(email);
       setMessage('Password reset instructions have been sent to your email.');
+      addToast({
+        title: 'Email Sent',
+        message: 'Password reset instructions have been sent to your email.',
+        type: 'success',
+        duration: 5000
+      });
     } catch (err) {
       setError('Failed to send password reset email.');
+      addToast({
+        title: 'Email Failed',
+        message: 'Failed to send password reset email. Please try again.',
+        type: 'error',
+        duration: 5000
+      });
     } finally {
       setIsLoading(false);
     }

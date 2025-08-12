@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { NotificationProvider } from './contexts/NotificationContext';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider, useNotifications } from './contexts/NotificationContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/layout/Layout';
+import ToastContainer from './components/ui/ToastContainer';
 import Login from './pages/auth/Login';
+
+// Toast container wrapper component
+const ToastContainerWrapper = () => {
+  const { toasts, dismissToast } = useNotifications();
+  return <ToastContainer toasts={toasts} onDismiss={dismissToast} />;
+};
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -17,7 +24,25 @@ import UserAssets from './pages/user/UserAssets';
 import UserIssues from './pages/user/UserIssues';
 import AssetDetails from './pages/shared/AssetDetails';
 import NotificationsPage from './pages/shared/NotificationsPage';
+import Settings from './pages/shared/Settings';
 import { supabase } from './lib/supabase';
+
+function RoleIndexRedirect() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  const target = user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+  return <Navigate to={target} replace />;
+}
+
+function RequireAuth({ children }: { children: React.ReactElement }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+  if (isLoading) return null;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  return children;
+}
 
 function App() {
   const [dbStatus, setDbStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
@@ -84,15 +109,16 @@ function App() {
   return (
     <ThemeProvider>
       <NotificationProvider>
-      <AuthProvider>
+        <AuthProvider>
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
+                <Route index element={<RoleIndexRedirect />} />
                 <Route path="admin">
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="users" element={<UserManagement />} />
                   <Route path="assets" element={<AssetManagement />} />
@@ -101,6 +127,7 @@ function App() {
                   <Route path="issues" element={<IssueManagement />} />
                 </Route>
                 <Route path="user">
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<UserDashboard />} />
                   <Route path="assets" element={<UserAssets />} />
                   <Route path="issues" element={<UserIssues />} />
@@ -110,12 +137,14 @@ function App() {
                   <Route path="asset/:id" element={<AssetDetails />} />
                 <Route path="notifications" element={<NotificationsPage />} />
                 </Route>
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>
           </Router>
+          <ToastContainerWrapper />
         </AuthProvider>
       </NotificationProvider>
-          </ThemeProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, RefreshCwIcon, AlertCircleIcon, UserIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon } from 'lucide-react';
-import { generateMockUsers, departments } from '../../utils/mockData';
+import { departments } from '../../utils/mockData';
+import { supabase } from '../../lib/supabase';
+import { userService } from '../../services/database';
 const UserManagement: React.FC = () => {
   const {
     addNotification
@@ -15,120 +17,291 @@ const UserManagement: React.FC = () => {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [departmentsList, setDepartmentsList] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     role: 'user',
-    department: 'IT',
+    department_id: 'IT',
     position: '',
     phone: ''
   });
   useEffect(() => {
-    // Fetch users
-    const fetchUsers = async () => {
+    // Fetch users and departments from Supabase
+    const fetchData = async () => {
       try {
-        // In a real app, this would be an API call
-        const mockUsers = generateMockUsers(30);
-        setUsers(mockUsers);
-        setFilteredUsers(mockUsers);
+        // Fetch users
+        const fetchedUsers = await userService.getAll();
+        setUsers(fetchedUsers);
+        setFilteredUsers(fetchedUsers);
+        
+        // Fetch departments
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .select('id, name')
+          .order('name');
+        
+        if (deptError) {
+          console.error('Error fetching departments:', deptError);
+        } else {
+          setDepartmentsList(deptData);
+        }
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error('Error fetching data:', error);
         addNotification({
           title: 'Error',
-          message: 'Failed to load users',
+          message: 'Failed to load data',
           type: 'error'
         });
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+    fetchData();
   }, [addNotification]);
   useEffect(() => {
     // Filter users based on search term and filters
     let result = users;
     if (searchTerm) {
-      result = result.filter(user => user.name.toLowerCase().includes(searchTerm.toLowerCase()) || user.email.toLowerCase().includes(searchTerm.toLowerCase()) || user.position.toLowerCase().includes(searchTerm.toLowerCase()));
+      result = result.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (user.position && user.position.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     }
     if (filterRole !== 'All') {
       result = result.filter(user => user.role === filterRole);
     }
     if (filterDepartment !== 'All') {
-      result = result.filter(user => user.department === filterDepartment);
+      result = result.filter(user => getDepartmentName(user.department_id) === filterDepartment);
     }
     setFilteredUsers(result);
   }, [users, searchTerm, filterRole, filterDepartment]);
-  const handleAddUser = e => {
+  const handleAddUser = async (e) => {
     e.preventDefault();
-    // Generate a unique ID
-    const newId = `U-${Date.now()}`;
-    // Create the new user object
-    const userToAdd = {
-      id: newId,
-      ...newUser,
-      image: `https://i.pravatar.cc/150?u=${newId}`
-    };
-    // Add the new user to the list
-    setUsers([userToAdd, ...users]);
-    // Close the modal and reset the form
-    setShowAddUserModal(false);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'user',
-      department: 'IT',
-      position: '',
-      phone: ''
-    });
-    // Show a notification
-    addNotification({
-      title: 'User Added',
-      message: `New user "${userToAdd.name}" has been added successfully`,
-      type: 'success'
-    });
+    
+    try {
+      // Get the department ID from the department name
+      let departmentId = null;
+      if (newUser.department_id && newUser.department_id !== '') {
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .select('id')
+          .eq('name', newUser.department_id)
+          .single();
+        
+        if (deptError) {
+          throw new Error('Invalid department selected');
+        }
+        departmentId = deptData.id;
+      }
+      
+      // Create user directly in the users table (since we're not using Supabase Auth for this demo)
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert([{
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+          department_id: departmentId,
+          position: newUser.position,
+          phone: newUser.phone,
+          is_active: true
+        }])
+        .select()
+        .single();
+      
+      if (userError) {
+        throw userError;
+      }
+      
+      // Refresh the users list
+      const fetchedUsers = await userService.getAll();
+      setUsers(fetchedUsers);
+      
+      // Close modal and reset form
+      setShowAddUserModal(false);
+      setNewUser({
+        name: '',
+        email: '',
+        role: 'user',
+        department_id: '',
+        position: '',
+        phone: ''
+      });
+      
+      addNotification({
+        title: 'User Added',
+        message: `New user "${newUser.name}" has been added successfully`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to create user. Please try again.',
+        type: 'error'
+      });
+    }
   };
-  const handleEditUser = e => {
+  const handleEditUser = async (e) => {
     e.preventDefault();
     if (!selectedUser) return;
-    // Update the user in the list
-    const updatedUsers = users.map(user => user.id === selectedUser.id ? {
-      ...user,
-      ...newUser
-    } : user);
-    setUsers(updatedUsers);
-    // Close the modal and reset the form
-    setShowEditUserModal(false);
-    setSelectedUser(null);
-    setNewUser({
-      name: '',
-      email: '',
-      role: 'user',
-      department: 'IT',
-      position: '',
-      phone: ''
-    });
-    // Show a notification
-    addNotification({
-      title: 'User Updated',
-      message: `User "${newUser.name}" has been updated successfully`,
-      type: 'success'
-    });
+    
+    try {
+      // Get the department ID from the department name
+      let departmentId = null;
+      if (newUser.department_id && newUser.department_id !== '') {
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .select('id')
+          .eq('name', newUser.department_id)
+          .single();
+        
+        if (deptError) {
+          throw new Error('Invalid department selected');
+        }
+        departmentId = deptData.id;
+      }
+      
+      // Update user profile in the users table
+      const { error: profileError } = await supabase
+        .from('users')
+        .update({
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+          department_id: departmentId,
+          position: newUser.position,
+          phone: newUser.phone,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedUser.id);
+      
+      if (profileError) {
+        throw profileError;
+      }
+      
+      // Refresh the users list
+      const fetchedUsers = await userService.getAll();
+      setUsers(fetchedUsers);
+      
+      // Close modal and reset form
+      setShowEditUserModal(false);
+      setSelectedUser(null);
+      setNewUser({
+        name: '',
+        email: '',
+        role: 'user',
+        department_id: '',
+        position: '',
+        phone: ''
+      });
+      
+      addNotification({
+        title: 'User Updated',
+        message: `User "${newUser.name}" has been updated successfully`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to update user. Please try again.',
+        type: 'error'
+      });
+    }
   };
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return;
-    // Filter out the selected user
-    const updatedUsers = users.filter(user => user.id !== selectedUser.id);
-    setUsers(updatedUsers);
-    // Show a notification
-    addNotification({
-      title: 'User Deleted',
-      message: `User "${selectedUser.name}" has been deleted`,
-      type: 'info'
-    });
-    // Close the modal and reset the selected user
-    setShowDeleteModal(false);
-    setSelectedUser(null);
+    
+    try {
+      // Delete user profile from the users table
+      const { error: profileError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', selectedUser.id);
+      
+      if (profileError) {
+        throw profileError;
+      }
+      
+      // Refresh the users list
+      const fetchedUsers = await userService.getAll();
+      setUsers(fetchedUsers);
+      
+      // Show notification and close modal
+      addNotification({
+        title: 'User Deleted',
+        message: `User "${selectedUser.name}" has been deleted successfully`,
+        type: 'info'
+      });
+      
+      setShowDeleteModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      addNotification({
+        title: 'Error',
+        message: error.message || 'Failed to delete user. Please try again.',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    if (newPassword.length < 8) {
+      addNotification({
+        title: 'Weak password',
+        message: 'Password must be at least 8 characters long',
+        type: 'warning'
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      addNotification({
+        title: 'Password mismatch',
+        message: 'New password and confirmation do not match',
+        type: 'error'
+      });
+      return;
+    }
+    
+    try {
+      // Update password using Supabase Auth Admin API
+      const { error } = await supabase.auth.admin.updateUserById(
+        selectedUser.id,
+        { password: newPassword }
+      );
+      
+      if (error) {
+        throw error;
+      }
+      
+      addNotification({
+        title: 'Password Updated',
+        message: `Password for "${selectedUser.name}" has been updated successfully`,
+        type: 'success'
+      });
+      
+      setShowChangePasswordModal(false);
+      setSelectedUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error updating password:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update password. Please try again.',
+        type: 'error'
+      });
+    }
   };
   const getRoleBadgeClass = role => {
     switch (role) {
@@ -153,6 +326,12 @@ const UserManagement: React.FC = () => {
       default:
         return role;
     }
+  };
+
+  const getDepartmentName = (departmentId) => {
+    if (!departmentId) return 'N/A';
+    const dept = departmentsList.find(d => d.id === departmentId);
+    return dept ? dept.name : 'N/A';
   };
   if (loading) {
     return <div className="flex items-center justify-center h-64">
@@ -252,7 +431,7 @@ const UserManagement: React.FC = () => {
             </div>
             <select className="block w-full pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)}>
               <option value="All">All Departments</option>
-              {departments.map(department => <option key={department} value={department}>{department}</option>)}
+              {departmentsList.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
             </select>
           </div>
           <button onClick={() => { setSearchTerm(''); setFilterRole('All'); setFilterDepartment('All'); }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90 flex items-center">
@@ -286,7 +465,9 @@ const UserManagement: React.FC = () => {
             {filteredUsers.map(user => <tr key={user.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
               <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                 <div className="flex items-center">
-                  <img src={user.image} alt={user.name} className="w-10 h-10 mr-3 rounded-full" />
+                  <div className="w-10 h-10 mr-3 rounded-full bg-lightgreen flex items-center justify-center">
+                    <UserIcon className="w-6 h-6 text-primary" />
+                  </div>
                   <span>{user.name}</span>
                 </div>
               </td>
@@ -294,12 +475,13 @@ const UserManagement: React.FC = () => {
               <td className="px-6 py-4">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeClass(user.role)}`}>{formatRoleName(user.role)}</span>
               </td>
-              <td className="px-6 py-4">{user.department}</td>
-              <td className="px-6 py-4">{user.position}</td>
-              <td className="px-6 py-4">{user.phone}</td>
+              <td className="px-6 py-4">{getDepartmentName(user.department_id)}</td>
+              <td className="px-6 py-4">{user.position || 'N/A'}</td>
+              <td className="px-6 py-4">{user.phone || 'N/A'}</td>
               <td className="px-6 py-4">
                 <div className="flex space-x-2">
-                  <button onClick={() => { setSelectedUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department: user.department, position: user.position, phone: user.phone }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setSelectedUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id, position: user.position, phone: user.phone }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setSelectedUser(user); setShowChangePasswordModal(true); }} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Change Password"><LockIcon className="w-5 h-5" /></button>
                   <button onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete User" disabled={user.role === 'admin'}><TrashIcon className="w-5 h-5" style={{ opacity: user.role === 'admin' ? 0.5 : 1 }} /></button>
                 </div>
               </td>
@@ -360,8 +542,9 @@ const UserManagement: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Department</label>
-              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newUser.department} onChange={e => setNewUser({ ...newUser, department: e.target.value })} required>
-                {departments.map(department => <option key={department} value={department}>{department}</option>)}
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newUser.department_id || ''} onChange={e => setNewUser({ ...newUser, department_id: e.target.value })} required>
+                <option value="">Select Department</option>
+                {departmentsList.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
               </select>
             </div>
             <div>
@@ -449,12 +632,13 @@ const UserManagement: React.FC = () => {
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Department
                   </label>
-                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newUser.department} onChange={e => setNewUser({
+                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newUser.department_id || ''} onChange={e => setNewUser({
                 ...newUser,
-                department: e.target.value
+                department_id: e.target.value
               })} required>
-                    {departments.map(department => <option key={department} value={department}>
-                        {department}
+                    <option value="">Select Department</option>
+                    {departmentsList.map(department => <option key={department.id} value={department.name}>
+                        {department.name}
                       </option>)}
                   </select>
                 </div>
@@ -530,6 +714,62 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Change Password</h3>
+              <button
+                onClick={() => { setShowChangePasswordModal(false); setSelectedUser(null); setNewPassword(''); setConfirmPassword(''); }}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleChangePassword}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-primary">New Password</label>
+                  <input
+                    type="password"
+                    className="block w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-primary">Confirm Password</label>
+                  <input
+                    type="password"
+                    className="block w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Note: This is a demo. Hook this up to your auth backend to persist changes.</p>
+              </div>
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowChangePasswordModal(false); setSelectedUser(null); setNewPassword(''); setConfirmPassword(''); }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark">
+                  Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>;
 };
 export default UserManagement;

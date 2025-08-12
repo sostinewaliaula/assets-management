@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { LockIcon, MailIcon, SunIcon, MoonIcon } from 'lucide-react';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +16,7 @@ const Login: React.FC = () => {
     theme,
     toggleTheme
   } = useTheme();
+  const { addToast } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === 'dark';
@@ -26,11 +28,23 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       await login(email, password);
+      addToast({
+        title: 'Login Successful',
+        message: `Welcome back!`,
+        type: 'success',
+        duration: 3000
+      });
       navigate(from, {
         replace: true
       });
     } catch (err) {
       setError('Failed to sign in. Please check your credentials.');
+      addToast({
+        title: 'Login Failed',
+        message: 'Please check your email and password.',
+        type: 'error',
+        duration: 5000
+      });
     } finally {
       setIsLoading(false);
     }

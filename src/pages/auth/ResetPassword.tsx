@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNotifications } from '../../contexts/NotificationContext';
 import { LockIcon, SunIcon, MoonIcon } from 'lucide-react';
 const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -17,6 +18,7 @@ const ResetPassword: React.FC = () => {
     theme,
     toggleTheme
   } = useTheme();
+  const { addToast } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === 'dark';
@@ -33,7 +35,14 @@ const ResetPassword: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      return setError('Passwords do not match.');
+      setError('Passwords do not match.');
+      addToast({
+        title: 'Password Mismatch',
+        message: 'Passwords do not match. Please try again.',
+        type: 'error',
+        duration: 5000
+      });
+      return;
     }
     setError('');
     setMessage('');
@@ -41,11 +50,23 @@ const ResetPassword: React.FC = () => {
     try {
       await resetPassword(token, password);
       setMessage('Password has been reset successfully.');
+      addToast({
+        title: 'Password Reset',
+        message: 'Your password has been reset successfully.',
+        type: 'success',
+        duration: 5000
+      });
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     } catch (err) {
       setError('Failed to reset password. The link may have expired.');
+      addToast({
+        title: 'Reset Failed',
+        message: 'Failed to reset password. The link may have expired.',
+        type: 'error',
+        duration: 5000
+      });
     } finally {
       setIsLoading(false);
     }

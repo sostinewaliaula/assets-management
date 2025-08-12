@@ -9,7 +9,8 @@ const UserDashboard: React.FC = () => {
     user
   } = useAuth();
   const {
-    addNotification
+    addNotification,
+    addToast
   } = useNotifications();
   const [assets, setAssets] = useState([]);
   const [issues, setIssues] = useState([]);
@@ -23,6 +24,12 @@ const UserDashboard: React.FC = () => {
         const mockIssues = generateMockIssues(mockAssets, 10).filter((issue, index) => index < 5);
         setAssets(mockAssets);
         setIssues(mockIssues);
+        addToast({
+          title: 'Dashboard Loaded',
+          message: 'Your dashboard has been loaded successfully.',
+          type: 'success',
+          duration: 2000
+        });
       } catch (error) {
         console.error('Error fetching data:', error);
         addNotification({
@@ -30,12 +37,18 @@ const UserDashboard: React.FC = () => {
           message: 'Failed to load dashboard data',
           type: 'error'
         });
+        addToast({
+          title: 'Error',
+          message: 'Failed to load dashboard data.',
+          type: 'error',
+          duration: 5000
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [addNotification]);
+  }, [addNotification, addToast]);
   const getStatusColor = status => {
     switch (status) {
       case 'Available':
