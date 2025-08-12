@@ -13,13 +13,31 @@ const DatabaseStatus: React.FC<DatabaseStatusProps> = ({ className = '' }) => {
   const checkConnection = async () => {
     try {
       setStatus('connecting');
-      const { data, error } = await supabase
+
+      // Check if we can reach Supabase at all (basic connectivity test)
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Supabase connection error:', sessionError);
+        setStatus('error');
+        setLastChecked(new Date());
+        return;
+      }
+
+      // If not authenticated, just show connected (backend is reachable)
+      if (!sessionData.session) {
+        setStatus('connected');
+        setLastChecked(new Date());
+        return;
+      }
+
+      // Only test database access if authenticated
+      const { error } = await supabase
         .from('departments')
-        .select('count')
-        .limit(1);
+        .select('id', { count: 'exact', head: true });
       
       if (error) {
-        console.error('Database connection error:', error);
+        console.error('Database access error:', error);
         setStatus('error');
       } else {
         setStatus('connected');

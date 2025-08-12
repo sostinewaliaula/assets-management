@@ -70,7 +70,7 @@ const AssetManagement: React.FC = () => {
         });
         addToast({
           title: 'Error',
-          message: 'Failed to load asset data. Please check your database connection.',
+        message: 'Failed to load asset data. Please check your database connection.',
           type: 'error'
         });
       } finally {
@@ -167,7 +167,7 @@ const AssetManagement: React.FC = () => {
         type: 'success'
       });
       addToast({
-        title: 'Asset Added',
+      title: 'Asset Added',
         message: `New asset "${newAssetData.name}" has been added successfully`,
         type: 'success'
       });
@@ -213,8 +213,8 @@ const AssetManagement: React.FC = () => {
       addToast({
         title: 'Asset Updated',
         message: `Asset "${updatedAsset.name}" has been updated successfully`,
-        type: 'success'
-      });
+      type: 'success'
+    });
     } catch (error) {
       console.error('Error updating asset:', error);
       addNotification({

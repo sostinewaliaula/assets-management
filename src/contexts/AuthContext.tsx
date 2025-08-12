@@ -1,22 +1,31 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
-// Define types
+import { supabase } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+
+// Define types based on your existing schema
 interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'department_officer' | 'user';
+  role: 'admin' | 'manager' | 'user'; // Updated to match your schema
   departmentId?: string;
+  phone?: string;
+  position?: string;
+  is_active?: boolean;
 }
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
 }
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -24,39 +33,109 @@ export const useAuth = () => {
   }
   return context;
 };
+
 export const AuthProvider: React.FC<{
   children: React.ReactNode;
-}> = ({
-  children
-}) => {
+}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Convert Supabase user to our User type
+  const convertSupabaseUser = async (supabaseUser: SupabaseUser): Promise<User | null> => {
+    try {
+      // Get user profile from our users table
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', supabaseUser.email)
+        .single();
+
+      if (error || !profile) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as 'admin' | 'manager' | 'user',
+        departmentId: profile.department_id || undefined,
+        phone: profile.phone || undefined,
+        position: profile.position || undefined,
+        is_active: profile.is_active
+      };
+    } catch (error) {
+      console.error('Error converting user:', error);
+      return null;
+    }
+  };
+
   // Check if user is already logged in
   useEffect(() => {
     const checkAuth = async () => {
-      // In a real app, this would verify the token with your backend
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      try {
+        // Get current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setIsLoading(false);
+          return;
+        }
+
+        if (session?.user) {
+          const userData = await convertSupabaseUser(session.user);
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
+
     checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          const userData = await convertSupabaseUser(session.user);
+          setUser(userData);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
+
   // Login function
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // In a real app, this would make an API call to your backend
-      // For demo purposes, we'll simulate a successful login with mock data
-      const mockUser: User = {
-        id: '1',
-        name: email.split('@')[0],
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        role: email.includes('admin') ? 'admin' : 'user'
-      };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+        password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        const userData = await convertSupabaseUser(data.user);
+        if (!userData) {
+          throw new Error('User profile not found in database');
+        }
+        setUser(userData);
+      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -64,31 +143,53 @@ export const AuthProvider: React.FC<{
       setIsLoading(false);
     }
   };
+
   // Logout function
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      setUser(null);
+    } catch (error) {
+      console.error('Logout failed:', error);
+      throw error;
+    }
   };
+
   // Forgot password function
   const forgotPassword = async (email: string) => {
-    // In a real app, this would make an API call to your backend
-    return new Promise<void>(resolve => {
-      setTimeout(() => {
-        console.log(`Password reset email sent to ${email}`);
-        resolve();
-      }, 1000);
-    });
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Forgot password failed:', error);
+      throw error;
+    }
   };
+
   // Reset password function
   const resetPassword = async (token: string, password: string) => {
-    // In a real app, this would make an API call to your backend
-    return new Promise<void>(resolve => {
-      setTimeout(() => {
-        console.log(`Password reset with token ${token}`);
-        resolve();
-      }, 1000);
-    });
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Reset password failed:', error);
+      throw error;
+    }
   };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -98,5 +199,6 @@ export const AuthProvider: React.FC<{
     forgotPassword,
     resetPassword
   };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

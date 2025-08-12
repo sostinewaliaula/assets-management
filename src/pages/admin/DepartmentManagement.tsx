@@ -39,7 +39,7 @@ const DepartmentManagement: React.FC = () => {
         });
         addToast({
           title: 'Error',
-          message: 'Failed to load department data. Please check your database connection.',
+        message: 'Failed to load department data. Please check your database connection.',
           type: 'error'
         });
       } finally {
@@ -125,7 +125,7 @@ const DepartmentManagement: React.FC = () => {
     });
     addToast({
       title: 'Department Added',
-      message: `New department "${newDepartmentData.name}" has been added successfully`,
+        message: `New department "${newDepartmentData.name}" has been added successfully`,
       type: 'success'
     });
     } catch (error) {
@@ -181,7 +181,7 @@ const DepartmentManagement: React.FC = () => {
     });
     addToast({
       title: 'Department Updated',
-      message: `Department "${updatedDepartment.name}" has been updated successfully`,
+        message: `Department "${updatedDepartment.name}" has been updated successfully`,
       type: 'success'
     });
     } catch (error) {
