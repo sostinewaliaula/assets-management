@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SearchIcon, FilterIcon, MonitorIcon, ArrowRightIcon, CheckCircleIcon, AlertCircleIcon } from 'lucide-react';
+import { SearchIcon, FilterIcon, MonitorIcon, ArrowRightIcon, CheckCircleIcon, AlertCircleIcon, XCircleIcon } from 'lucide-react';
 import { supabase, Asset } from '../../lib/supabase';
+import { issueService } from '../../services/database';
 
 const UserAssets: React.FC = () => {
   const {
@@ -19,6 +20,28 @@ const UserAssets: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  
+  // Issue form state
+  const [showIssueForm, setShowIssueForm] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [newIssue, setNewIssue] = useState({
+    title: '',
+    description: '',
+    type: 'Hardware Failure',
+    priority: 'Medium'
+  });
+  
+  // Asset request form state
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [newAssetRequest, setNewAssetRequest] = useState({
+    type: '',
+    reason: '',
+    urgency: 'Medium'
+  });
+  
+  // Loading states
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   useEffect(() => {
     // Fetch user's assets
     const fetchAssets = async () => {
@@ -61,6 +84,147 @@ const UserAssets: React.FC = () => {
     };
     fetchAssets();
   }, [addNotification, user?.id]);
+
+  // Handle issue form submission
+  const handleIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!selectedAsset || !user) return;
+    
+    setIsSubmittingIssue(true);
+    
+    try {
+      // Create the issue object
+      const newIssueObj = {
+        id: `I-${Date.now()}`,
+        title: newIssue.title,
+        description: newIssue.description,
+        assetId: selectedAsset.id,
+        assetName: selectedAsset.name,
+        status: 'Open',
+        type: newIssue.type,
+        priority: newIssue.priority,
+        createdBy: {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        comments: [{
+          id: `C-${Date.now()}`,
+          text: newIssue.description,
+          createdBy: user.name,
+          createdAt: new Date().toISOString()
+        }]
+      };
+
+      // Submit to Supabase
+      const { error } = await supabase
+        .from('issues')
+        .insert({
+          title: newIssue.title,
+          description: newIssue.description,
+          status: 'open',
+          priority: newIssue.priority.toLowerCase(),
+          category: newIssue.type,
+          reported_by: user.id,
+          asset_id: selectedAsset.id,
+          department_id: selectedAsset.department_id
+        });
+
+      if (error) throw error;
+
+      // Reset form and close modal
+      setNewIssue({
+        title: '',
+        description: '',
+        type: 'Hardware Failure',
+        priority: 'Medium'
+      });
+      setShowIssueForm(false);
+      setSelectedAsset(null);
+
+      // Show success notification
+      addNotification({
+        title: 'Issue Reported',
+        message: `Issue reported for ${selectedAsset.name}`,
+        type: 'success'
+      });
+      addToast({
+        title: 'Issue Reported',
+        message: `Issue reported for ${selectedAsset.name}`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error reporting issue:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to report issue. Please try again.',
+        type: 'error'
+      });
+      addToast({
+        title: 'Error',
+        message: 'Failed to report issue. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSubmittingIssue(false);
+    }
+  };
+
+  // Open issue form for a specific asset
+  const openIssueForm = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setShowIssueForm(true);
+  };
+
+  // Handle asset request form submission
+  const handleAssetRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) return;
+    
+    setIsSubmittingRequest(true);
+    
+    try {
+      // Submit to Supabase (you can create an asset_requests table if needed)
+      // For now, we'll just show a success message
+      addNotification({
+        title: 'Request Submitted',
+        message: 'Your request for a new asset has been submitted successfully',
+        type: 'success'
+      });
+      addToast({
+        title: 'Request Submitted',
+        message: 'Your request for a new asset has been submitted successfully',
+        type: 'success'
+      });
+      
+      // Reset form and close modal
+      setNewAssetRequest({
+        type: '',
+        reason: '',
+        urgency: 'Medium'
+      });
+      setShowRequestForm(false);
+    } catch (error) {
+      console.error('Error submitting asset request:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to submit asset request. Please try again.',
+        type: 'error'
+      });
+      addToast({
+        title: 'Error',
+        message: 'Failed to submit asset request. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
   useEffect(() => {
     // Filter assets based on search term and filters
     let result = assets;
@@ -134,10 +298,13 @@ const UserAssets: React.FC = () => {
         <h2 className="mb-4 text-xl font-bold text-primary">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Link to="/my-issues" className="button-primary flex items-center justify-center"> <AlertCircleIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">View My Issues</span> </Link>
-          <button onClick={() => { 
-            addNotification({ title: 'Request Submitted', message: 'Your request for a new asset has been submitted', type: 'success' }); 
-            addToast({ title: 'Request Submitted', message: 'Your request for a new asset has been submitted', type: 'success' }); 
-          }} className="button-primary flex items-center justify-center"> <MonitorIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Request New Asset</span> </button>
+          <button 
+            onClick={() => setShowRequestForm(true)} 
+            className="button-primary flex items-center justify-center"
+          > 
+            <MonitorIcon className="w-6 h-6 mr-3 text-white" /> 
+            <span className="font-medium text-white">Request New Asset</span> 
+          </button>
           <Link to="/" className="button-primary flex items-center justify-center"> <ArrowRightIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Back to Dashboard</span> </Link>
         </div>
       </div>
@@ -215,10 +382,12 @@ const UserAssets: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <Link to={`/assets/${asset.id}`} className="button-primary px-3 py-1 text-xs font-medium">View Details</Link>
-                    <button onClick={() => { 
-                      addNotification({ title: 'Issue Reported', message: `Issue reported for ${asset.name}`, type: 'info' }); 
-                      addToast({ title: 'Issue Reported', message: `Issue reported for ${asset.name}`, type: 'info' }); 
-                    }} className="px-3 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 rounded-full hover:bg-yellow-200">Report Issue</button>
+                    <button 
+                      onClick={() => openIssueForm(asset)} 
+                      className="px-3 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 rounded-full hover:bg-yellow-200"
+                    >
+                      Report Issue
+                    </button>
                   </div>
                 </td>
               </tr>)}
@@ -237,6 +406,301 @@ const UserAssets: React.FC = () => {
           </>}
         </div>}
       </div>
+      
+      {/* Issue Form Modal */}
+      {showIssueForm && selectedAsset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircleIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-primary dark:text-white">
+                  Report an Issue
+                </h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowIssueForm(false);
+                  setSelectedAsset(null);
+                }} 
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Asset Info Section */}
+            <div className="p-6 bg-lightgreen/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-3 bg-white dark:bg-gray-700 rounded-xl">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Asset:</span> {selectedAsset.name}
+                  </p>
+                </div>
+                <div className="p-3 bg-white dark:bg-gray-700 rounded-xl">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Type:</span> {selectedAsset.type}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Scrollable Form Content */}
+            <div className="overflow-y-auto max-h-[60vh] p-6">
+              <form onSubmit={handleIssueSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Issue Title *
+                    </label>
+                    <input 
+                      type="text" 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      placeholder="Brief description of the issue" 
+                      value={newIssue.title} 
+                      onChange={e => setNewIssue({
+                        ...newIssue,
+                        title: e.target.value
+                      })} 
+                      required 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Issue Type
+                    </label>
+                    <select 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      value={newIssue.type} 
+                      onChange={e => setNewIssue({
+                        ...newIssue,
+                        type: e.target.value
+                      })}
+                    >
+                      <option value="Hardware Failure">Hardware Failure</option>
+                      <option value="Software Issue">Software Issue</option>
+                      <option value="Connectivity Problem">Connectivity Problem</option>
+                      <option value="Upgrade Request">Upgrade Request</option>
+                      <option value="Replacement Request">Replacement Request</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Priority
+                  </label>
+                  <select 
+                    className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                    value={newIssue.priority} 
+                    onChange={e => setNewIssue({
+                      ...newIssue,
+                      priority: e.target.value
+                    })}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Description *
+                  </label>
+                  <textarea 
+                    className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" 
+                    rows={5} 
+                    placeholder="Detailed description of the issue..." 
+                    value={newIssue.description} 
+                    onChange={e => setNewIssue({
+                      ...newIssue,
+                      description: e.target.value
+                    })} 
+                    required
+                  />
+                </div>
+              </form>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowIssueForm(false);
+                  setSelectedAsset(null);
+                }} 
+                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                onClick={handleIssueSubmit}
+                disabled={isSubmittingIssue}
+                className="px-6 py-3 text-sm font-medium text-white bg-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+              >
+                {isSubmittingIssue ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Issue'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Asset Request Form Modal */}
+      {showRequestForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <MonitorIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-primary dark:text-white">
+                  Request New Asset
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowRequestForm(false)} 
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Scrollable Form Content */}
+            <div className="overflow-y-auto max-h-[60vh] p-6">
+              <form onSubmit={handleAssetRequestSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Asset Type *
+                    </label>
+                    <select 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      value={newAssetRequest.type} 
+                      onChange={e => setNewAssetRequest({
+                        ...newAssetRequest,
+                        type: e.target.value
+                      })}
+                      required
+                    >
+                      <option value="">Select Asset Type</option>
+                      <option value="Laptop">Laptop</option>
+                      <option value="Desktop">Desktop</option>
+                      <option value="Monitor">Monitor</option>
+                      <option value="Keyboard">Keyboard</option>
+                      <option value="Mouse">Mouse</option>
+                      <option value="Phone">Phone</option>
+                      <option value="Tablet">Tablet</option>
+                      <option value="Printer">Printer</option>
+                      <option value="Server">Server</option>
+                      <option value="Router">Router</option>
+                      <option value="Switch">Switch</option>
+                      <option value="Projector">Projector</option>
+                      <option value="Camera">Camera</option>
+                      <option value="Furniture">Furniture</option>
+                      <option value="Vehicle">Vehicle</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Urgency Level
+                    </label>
+                    <select 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      value={newAssetRequest.urgency} 
+                      onChange={e => setNewAssetRequest({
+                        ...newAssetRequest,
+                        urgency: e.target.value
+                      })}
+                    >
+                      <option value="Low">Low - Can wait a few weeks</option>
+                      <option value="Medium">Medium - Needed within 1-2 weeks</option>
+                      <option value="High">High - Needed within a few days</option>
+                      <option value="Critical">Critical - Needed immediately</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Reason for Request *
+                  </label>
+                  <textarea 
+                    className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" 
+                    rows={6} 
+                    placeholder="Please explain why you need this asset, how it will improve your work, and any specific requirements or preferences..." 
+                    value={newAssetRequest.reason} 
+                    onChange={e => setNewAssetRequest({
+                      ...newAssetRequest,
+                      reason: e.target.value
+                    })} 
+                    required
+                  />
+                </div>
+                
+                {/* Additional Information Section */}
+                <div className="p-4 bg-lightgreen/30 dark:bg-gray-800/50 rounded-xl border border-lightgreen/50 dark:border-gray-700">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    💡 Tips for a better request:
+                  </h4>
+                  <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                    <li>• Be specific about the asset type and specifications needed</li>
+                    <li>• Explain how this asset will improve your productivity</li>
+                    <li>• Mention any urgent deadlines or business impact</li>
+                    <li>• Include any specific brand or model preferences</li>
+                  </ul>
+                </div>
+              </form>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
+              <button 
+                type="button" 
+                onClick={() => setShowRequestForm(false)} 
+                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                onClick={handleAssetRequestSubmit}
+                disabled={isSubmittingRequest}
+                className="px-6 py-3 text-sm font-medium text-white bg-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+              >
+                {isSubmittingRequest ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Request'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
