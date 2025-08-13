@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 import { assetService, userService, departmentService, issueService } from '../../services/database';
-import { Asset, User, Department, Issue } from '../../lib/supabase';
+import { Asset, User, Department, Issue, supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 
 const AssetDetails: React.FC = () => {
@@ -24,6 +24,7 @@ const AssetDetails: React.FC = () => {
   });
   const [issues, setIssues] = useState<Issue[]>([]);
   const isAdmin = user?.role === 'admin';
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -33,6 +34,22 @@ const AssetDetails: React.FC = () => {
         // Fetch asset details from database
         const assetData = await assetService.getById(assetId);
         if (assetData) {
+          // Check if user has permission to view this asset
+          if (user?.role !== 'admin' && assetData.assigned_to !== user?.id) {
+            addNotification({
+              title: 'Access Denied',
+              message: 'You can only view assets assigned to you',
+              type: 'error'
+            });
+            addToast({
+              title: 'Access Denied',
+              message: 'You can only view assets assigned to you',
+              type: 'error'
+            });
+            setLoading(false);
+            return;
+          }
+          
           setAsset(assetData);
           
           // Fetch assigned user if asset is assigned
@@ -56,8 +73,17 @@ const AssetDetails: React.FC = () => {
           }
           // Fetch issues for this asset
           try {
-            const issuesData = await issueService.getByAsset(assetId);
-            setIssues(issuesData);
+            const { data: issuesData, error: issuesError } = await supabase
+              .from('issues')
+              .select('*')
+              .eq('asset_id', assetId)
+              .order('created_at', { ascending: false });
+            
+            if (issuesError) {
+              console.error('Error fetching issues:', issuesError);
+            } else {
+              setIssues(issuesData || []);
+            }
           } catch (error) {
             console.error('Error fetching issues:', error);
           }
@@ -80,60 +106,87 @@ const AssetDetails: React.FC = () => {
     };
     
     fetchAssetDetails();
-  }, [assetId, addNotification]);
-  const handleIssueSubmit = e => {
+  }, [assetId, addNotification, user]);
+  const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would be an API call
-    const newIssueObj = {
-      id: `I-${Date.now()}`,
-      title: newIssue.title,
-      description: newIssue.description,
-      assetId: asset.id,
-      assetName: asset.name,
-      assetImage: asset.image,
-      status: 'Open',
-      type: newIssue.type,
-      priority: newIssue.priority,
-      createdBy: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      comments: [{
-        id: `C-${Date.now()}`,
-        text: newIssue.description,
-        createdBy: user.name,
-        createdAt: new Date().toISOString()
-      }]
-    };
-    setIssues([newIssueObj, ...issues]);
-    issueService.create(newIssueObj); // Persist the new issue
-    addNotification({
-      title: 'Issue Created',
-      message: `New issue created for ${asset.name}`,
-      type: 'success'
-    });
-    addToast({
-      title: 'Issue Created',
-      message: `New issue created for ${asset.name}`,
-      type: 'success'
-    });
-    setNewIssue({
-      title: '',
-      description: '',
-      type: 'Hardware Failure',
-      priority: 'Medium'
-    });
-    setShowIssueForm(false);
+    
+    if (!asset || !user) return;
+    
+    setIsSubmittingIssue(true);
+    
+    try {
+      // Create issue object that matches Supabase schema
+      const newIssueObj = {
+        title: newIssue.title,
+        description: newIssue.description,
+        status: 'Open',
+        priority: newIssue.priority,
+        category: newIssue.type, // Map type to category
+        reported_by: user.id,
+        assigned_to: null, // Will be assigned by admin later
+        asset_id: asset.id,
+        department_id: asset.department_id,
+        estimated_resolution_date: null,
+        actual_resolution_date: null
+      };
+      
+      // Create the issue in Supabase
+      const { data, error } = await supabase
+        .from('issues')
+        .insert([newIssueObj])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data[0]) {
+        // Add the new issue to the local state
+        setIssues([data[0], ...issues]);
+        
+        // Show success notifications
+        addNotification({
+          title: 'Issue Created',
+          message: `New issue created for ${asset.name}`,
+          type: 'success'
+        });
+        addToast({
+          title: 'Issue Created',
+          message: `New issue created for ${asset.name}`,
+          type: 'success'
+        });
+        
+        // Reset form and close modal
+        setNewIssue({
+          title: '',
+          description: '',
+          type: 'Hardware Failure',
+          priority: 'Medium'
+        });
+        setShowIssueForm(false);
+      }
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to create issue. Please try again.',
+        type: 'error'
+      });
+      addToast({
+        title: 'Error',
+        message: 'Failed to create issue. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSubmittingIssue(false);
+    }
   };
-  const formatDate = dateString => {
+  const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
-  const getStatusBadge = status => {
-    const statusColors = {
+  const getStatusBadge = (status: string) => {
+    const statusColors: Record<string, string> = {
       Available: 'bg-lightgreen text-primary',
       Assigned: 'bg-lightpurple text-secondary',
       'In Maintenance': 'bg-yellow-100 text-yellow-800',
@@ -142,8 +195,8 @@ const AssetDetails: React.FC = () => {
     };
     return <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>{status}</span>;
   };
-  const getConditionBadge = condition => {
-    const conditionColors = {
+  const getConditionBadge = (condition: string) => {
+    const conditionColors: Record<string, string> = {
       New: 'bg-lightgreen text-primary',
       Excellent: 'bg-lightgreen text-primary',
       Good: 'bg-lightpurple text-secondary',
@@ -153,8 +206,8 @@ const AssetDetails: React.FC = () => {
     };
     return <span className={`px-2 py-1 text-xs font-medium rounded-full ${conditionColors[condition] || 'bg-gray-100 text-gray-800'}`}>{condition}</span>;
   };
-  const getIssueBadge = status => {
-    const statusColors = {
+  const getIssueBadge = (status: string) => {
+    const statusColors: Record<string, string> = {
       Open: 'bg-red-100 text-red-800',
       'In Progress': 'bg-yellow-100 text-yellow-800',
       'Pending User Action': 'bg-lightpurple text-secondary',
@@ -175,8 +228,15 @@ const AssetDetails: React.FC = () => {
   if (!asset) {
     return <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
       <h1 className="text-3xl font-bold text-primary">Asset Not Found</h1>
-      <p className="mt-2 text-gray-700">The asset you're looking for doesn't exist or you don't have permission to view it.</p>
-      <Link to="/" className="button-primary inline-block px-4 py-2 mt-4 text-sm font-medium">Go Back to Dashboard</Link>
+      <p className="mt-2 text-gray-700 dark:text-gray-300">The asset you're looking for doesn't exist or you don't have permission to view it.</p>
+      <div className="mt-4 space-y-2">
+        <Link to="/" className="button-primary inline-block px-4 py-2 text-sm font-medium">Go Back to Dashboard</Link>
+        {user?.role !== 'admin' && (
+          <Link to="/user/assets" className="inline-block px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary hover:text-white transition-colors ml-2">
+            View My Assets
+          </Link>
+        )}
+      </div>
     </div>;
   }
   return <div className="space-y-6">
@@ -184,7 +244,7 @@ const AssetDetails: React.FC = () => {
     <div className="flex flex-col justify-between p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card md:flex-row md:items-center">
       <div className="flex items-center">
         <div className="relative">
-          <img src={asset.image || 'https://via.placeholder.com/150'} alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
+          <img src="https://via.placeholder.com/150" alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
           <div className="absolute bottom-0 right-0">{getStatusBadge(asset.status)}</div>
         </div>
         <div className="ml-4">
@@ -285,15 +345,16 @@ const AssetDetails: React.FC = () => {
                       <h3 className="text-sm font-medium text-gray-800">{issue.title}</h3>
                       <div className="ml-2">{getIssueBadge(issue.status)}</div>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">Reported by {issue.createdBy.name} on {formatDate(issue.createdAt)}</p>
+                    <p className="mt-1 text-xs text-gray-500">Reported on {formatDate(issue.created_at)}</p>
                     <p className="mt-2 text-sm text-gray-600">{issue.description}</p>
                   </div>
                   <div className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded">{issue.priority}</div>
                 </div>
-                {issue.comments && issue.comments.length > 1 && <div className="mt-3">
-                  <div className="flex items-center mb-2"><span className="text-xs font-medium text-gray-700">Latest Update</span></div>
-                  <div className="p-3 bg-white rounded-xl"><p className="text-xs text-gray-600">{issue.comments[issue.comments.length - 1].text}</p><p className="mt-1 text-xs text-gray-500">{issue.comments[issue.comments.length - 1].createdBy} - {formatDate(issue.comments[issue.comments.length - 1].createdAt)}</p></div>
-                </div>}
+                {issue.category && (
+                  <div className="mt-2">
+                    <span className="text-xs text-gray-500">Category: {issue.category}</span>
+                  </div>
+                )}
               </div>)}
             </div> : <div className="flex flex-col items-center justify-center p-8 text-center">
               <CheckCircleIcon className="w-12 h-12 text-primary" />
@@ -332,91 +393,166 @@ const AssetDetails: React.FC = () => {
           <div className="p-4 bg-lightgreen rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Status</span>
-              {new Date(asset.warranty_expiry) > new Date() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
+              {new Date(asset.warranty_expiry || '').getTime() > new Date().getTime() ? <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">Active</span> : <span className="px-2 py-1 text-xs font-medium text-red-800 bg-red-100 rounded-full">Expired</span>}
             </div>
             <div className="mt-3 space-y-2">
               <div className="flex justify-between"><span className="text-xs text-gray-600">Purchase Date</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.purchase_date)}</span></div>
               <div className="flex justify-between"><span className="text-xs text-gray-600">Warranty End</span><span className="text-xs font-medium text-gray-700">{formatDate(asset.warranty_expiry)}</span></div>
-              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warranty_expiry) > new Date() ? Math.ceil((new Date(asset.warranty_expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
+              <div className="flex justify-between"><span className="text-xs text-gray-600">Days Remaining</span><span className="text-xs font-medium text-gray-700">{new Date(asset.warranty_expiry || '').getTime() > new Date().getTime() ? Math.ceil((new Date(asset.warranty_expiry || '').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 'Expired'}</span></div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    {/* Issue Form Modal remains, update classes to match the new theme. */}
-    {showIssueForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Report an Issue
-              </h3>
-              <button onClick={() => setShowIssueForm(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+    {/* Issue Form Modal */}
+    {showIssueForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircleIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-primary dark:text-white">
+                  Report an Issue
+                </h3>
+              </div>
+              <button onClick={() => setShowIssueForm(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <XCircleIcon className="w-6 h-6" />
               </button>
             </div>
-            <form onSubmit={handleIssueSubmit}>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Issue Title
-                </label>
-                <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="Brief description of the issue" value={newIssue.title} onChange={e => setNewIssue({
-              ...newIssue,
-              title: e.target.value
-            })} required />
+            
+            {/* Asset Info Section */}
+            {asset && (
+              <div className="p-6 bg-lightgreen/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-3 bg-white dark:bg-gray-700 rounded-xl">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">Asset:</span> {asset.name}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-gray-700 rounded-xl">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">Type:</span> {asset.type}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Issue Type
-                </label>
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newIssue.type} onChange={e => setNewIssue({
-              ...newIssue,
-              type: e.target.value
-            })}>
-                  <option value="Hardware Failure">Hardware Failure</option>
-                  <option value="Software Issue">Software Issue</option>
-                  <option value="Connectivity Problem">
-                    Connectivity Problem
-                  </option>
-                  <option value="Upgrade Request">Upgrade Request</option>
-                  <option value="Replacement Request">
-                    Replacement Request
-                  </option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Priority
-                </label>
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newIssue.priority} onChange={e => setNewIssue({
-              ...newIssue,
-              priority: e.target.value
-            })}>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Description
-                </label>
-                <textarea className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" rows={4} placeholder="Detailed description of the issue" value={newIssue.description} onChange={e => setNewIssue({
-              ...newIssue,
-              description: e.target.value
-            })} required></textarea>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowIssueForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
-                  Submit Issue
-                </button>
-              </div>
-            </form>
+            )}
+            
+            {/* Scrollable Form Content */}
+            <div className="overflow-y-auto max-h-[60vh] p-6">
+              <form onSubmit={handleIssueSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Issue Title *
+                    </label>
+                    <input 
+                      type="text" 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      placeholder="Brief description of the issue" 
+                      value={newIssue.title} 
+                      onChange={e => setNewIssue({
+                        ...newIssue,
+                        title: e.target.value
+                      })} 
+                      required 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Issue Type
+                    </label>
+                    <select 
+                      className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                      value={newIssue.type} 
+                      onChange={e => setNewIssue({
+                        ...newIssue,
+                        type: e.target.value
+                      })}
+                    >
+                      <option value="Hardware Failure">Hardware Failure</option>
+                      <option value="Software Issue">Software Issue</option>
+                      <option value="Connectivity Problem">Connectivity Problem</option>
+                      <option value="Upgrade Request">Upgrade Request</option>
+                      <option value="Replacement Request">Replacement Request</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Priority
+                  </label>
+                  <select 
+                    className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" 
+                    value={newIssue.priority} 
+                    onChange={e => setNewIssue({
+                      ...newIssue,
+                      priority: e.target.value
+                    })}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Description *
+                  </label>
+                  <textarea 
+                    className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" 
+                    rows={5} 
+                    placeholder="Detailed description of the issue..." 
+                    value={newIssue.description} 
+                    onChange={e => setNewIssue({
+                      ...newIssue,
+                      description: e.target.value
+                    })} 
+                    required
+                  />
+                </div>
+                
+                {/* Hidden submit button for form submission */}
+                <button type="submit" className="hidden">Submit</button>
+              </form>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
+              <button 
+                type="button" 
+                onClick={() => setShowIssueForm(false)} 
+                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  const form = document.querySelector('form');
+                  if (form) form.requestSubmit();
+                }}
+                disabled={isSubmittingIssue}
+                className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] shadow-lg"
+              >
+                {isSubmittingIssue ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit Issue'
+                )}
+              </button>
+            </div>
           </div>
         </div>}
   </div>;
