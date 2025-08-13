@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, MonitorIcon, ArrowRightIcon, CheckCircleIcon, AlertCircleIcon } from 'lucide-react';
-import { generateMockAssets } from '../../utils/mockData';
+import { supabase, Asset } from '../../lib/supabase';
+
 const UserAssets: React.FC = () => {
   const {
     user
@@ -12,8 +13,8 @@ const UserAssets: React.FC = () => {
     addNotification,
     addToast
   } = useNotifications();
-  const [assets, setAssets] = useState([]);
-  const [filteredAssets, setFilteredAssets] = useState([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
@@ -22,10 +23,26 @@ const UserAssets: React.FC = () => {
     // Fetch user's assets
     const fetchAssets = async () => {
       try {
+        // Check if user is authenticated
+        if (!user?.id) {
+          setAssets([]);
+          setFilteredAssets([]);
+          setLoading(false);
+          return;
+        }
+        
         // In a real app, this would be an API call
-        const mockAssets = generateMockAssets(15);
-        setAssets(mockAssets);
-        setFilteredAssets(mockAssets);
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('assigned_to', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+        setAssets(data as Asset[]);
+        setFilteredAssets(data as Asset[]);
       } catch (error) {
         console.error('Error fetching assets:', error);
         addNotification({
@@ -43,12 +60,16 @@ const UserAssets: React.FC = () => {
       }
     };
     fetchAssets();
-  }, [addNotification]);
+  }, [addNotification, user?.id]);
   useEffect(() => {
     // Filter assets based on search term and filters
     let result = assets;
     if (searchTerm) {
-      result = result.filter(asset => asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || asset.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) || asset.type.toLowerCase().includes(searchTerm.toLowerCase()));
+      result = result.filter(asset => 
+        asset.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        asset.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        asset.type.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
     if (filterType !== 'All') {
       result = result.filter(asset => asset.type === filterType);
@@ -62,7 +83,11 @@ const UserAssets: React.FC = () => {
   const assetTypes = ['All', ...new Set(assets.map(asset => asset.type))];
   // Extract unique asset statuses from assets
   const assetStatuses = ['All', ...new Set(assets.map(asset => asset.status))];
-  const getStatusColor = status => {
+  
+  // Ensure we have assets before trying to extract types and statuses
+  const safeAssetTypes = assets.length > 0 ? assetTypes : ['All'];
+  const safeAssetStatuses = assets.length > 0 ? assetStatuses : ['All'];
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'Available':
       case 'Assigned':
@@ -84,11 +109,25 @@ const UserAssets: React.FC = () => {
       </div>
     </div>;
   }
+
+  // Check if user is not authenticated
+  if (!user) {
+    return <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center">
+        <AlertCircleIcon className="w-16 h-16 text-gray-400" />
+        <h3 className="mt-4 text-lg font-medium text-gray-700">Authentication Required</h3>
+        <p className="mt-2 text-sm text-gray-500">Please log in to view your assets</p>
+        <Link to="/login" className="px-4 py-2 mt-4 text-sm font-medium text-white bg-primary rounded-full shadow-button hover:opacity-90">
+          Go to Login
+        </Link>
+      </div>
+    </div>;
+  }
   return (
     <div className="space-y-6">
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <h1 className="text-3xl font-bold text-primary">My Assets</h1>
-        <p className="mt-2 text-gray-700 dark:text-gray-300">View and manage your assigned assets.</p>
+        <p className="mt-2 text-gray-700 dark:text-gray-300">View and manage your assigned assets, {user.name}.</p>
       </div>
       {/* Quick Actions */}
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
@@ -110,7 +149,13 @@ const UserAssets: React.FC = () => {
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <SearchIcon className="w-5 h-5 text-gray-400" />
               </div>
-              <input type="text" className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Search by name, serial number, or type..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <input 
+                type="text" 
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" 
+                placeholder="Search by name, serial number, or type..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+              />
             </div>
           </div>
           <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
@@ -119,7 +164,7 @@ const UserAssets: React.FC = () => {
                 <FilterIcon className="w-5 h-5 text-gray-400" />
               </div>
               <select className="block w-full pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={filterType} onChange={e => setFilterType(e.target.value)}>
-                {assetTypes.map(type => <option key={type} value={type}>{type === 'All' ? 'All Types' : type}</option>)}
+                {safeAssetTypes.map(type => <option key={type} value={type}>{type === 'All' ? 'All Types' : type}</option>)}
               </select>
             </div>
             <div className="relative">
@@ -127,7 +172,7 @@ const UserAssets: React.FC = () => {
                 <FilterIcon className="w-5 h-5 text-gray-400" />
               </div>
               <select className="block w-full pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                {assetStatuses.map(status => <option key={status} value={status}>{status === 'All' ? 'All Statuses' : status}</option>)}
+                {safeAssetStatuses.map(status => <option key={status} value={status}>{status === 'All' ? 'All Statuses' : status}</option>)}
               </select>
             </div>
           </div>
@@ -137,7 +182,7 @@ const UserAssets: React.FC = () => {
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <div className="p-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-primary">Your Assigned Assets</h2>
+            <h2 className="text-xl font-bold text-primary">{user.name}'s Assigned Assets</h2>
             <span className="px-3 py-1 text-sm font-medium text-primary bg-lightgreen rounded-full">{filteredAssets.length} assets</span>
           </div>
         </div>
@@ -157,12 +202,12 @@ const UserAssets: React.FC = () => {
               {filteredAssets.map(asset => <tr key={asset.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                   <Link to={`/assets/${asset.id}`} className="flex items-center">
-                    <img src={asset.image} alt={asset.name} className="w-10 h-10 mr-3 rounded-xl" />
+                    <img src="https://via.placeholder.com/50" alt={asset.name} className="w-10 h-10 mr-3 rounded-xl" />
                     <span>{asset.name}</span>
                   </Link>
                 </td>
                 <td className="px-6 py-4">{asset.type}</td>
-                <td className="px-6 py-4">{asset.serialNumber}</td>
+                <td className="px-6 py-4">{asset.serial_number}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(asset.status)}`}>{asset.status}</span>
                 </td>
@@ -187,8 +232,8 @@ const UserAssets: React.FC = () => {
             <button onClick={() => { setSearchTerm(''); setFilterType('All'); setFilterStatus('All'); }} className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90">Clear Filters</button>
           </> : <>
             <CheckCircleIcon className="w-16 h-16 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-700">No assets assigned</h3>
-            <p className="mt-2 text-sm text-gray-500">You don't have any assets assigned to you yet</p>
+            <h3 className="mt-4 text-lg font-medium text-gray-700">No assets assigned yet</h3>
+            <p className="mt-2 text-sm text-gray-500">You don't have any assets assigned to you yet, {user.name}</p>
           </>}
         </div>}
       </div>

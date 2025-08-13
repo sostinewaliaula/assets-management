@@ -72,6 +72,9 @@ export const generateMockAssets = (count = 50) => {
       name: `User ${Math.floor(Math.random() * 100)}`,
       email: `user${Math.floor(Math.random() * 100)}@turnkeyafrica.com`
     } : null;
+    
+    // Add assignedUserId for easier filtering
+    const assignedUserId = assignedUser ? assignedUser.id : null;
     assets.push({
       id: `A-${i + 1}`,
       name: `${manufacturer} ${model} ${assetType}`,
@@ -86,6 +89,7 @@ export const generateMockAssets = (count = 50) => {
       status,
       condition,
       assignedUser,
+      assignedUserId,
       image,
       notes: `This is a ${condition.toLowerCase()} condition ${manufacturer} ${assetType} at Turnkey Africa.`
     });
@@ -191,4 +195,47 @@ export const generateMockUsers = (count = 20) => {
     });
   }
   return users;
+};
+
+// Generate mock assets for a specific user
+export const generateMockUserAssets = (userId: string, count = 10) => {
+  const allAssets = generateMockAssets(count * 3); // Generate more assets to ensure some are assigned to the user
+  const userAssets = allAssets.filter(asset => asset.assignedUserId === userId);
+  
+  // If no assets are assigned to the user, create some mock assigned assets
+  if (userAssets.length === 0) {
+    const assetTypes = ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet'];
+    const manufacturers = ['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft'];
+    
+    for (let i = 0; i < count; i++) {
+      const assetType = assetTypes[Math.floor(Math.random() * assetTypes.length)];
+      const manufacturer = manufacturers[Math.floor(Math.random() * manufacturers.length)];
+      const serialNumber = `SN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      
+      userAssets.push({
+        id: `UA-${i + 1}`,
+        name: `${manufacturer} ${assetType} - User Asset`,
+        type: assetType,
+        manufacturer,
+        model: `Model-${Math.floor(Math.random() * 1000)}`,
+        serialNumber,
+        purchaseDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        warrantyEndDate: new Date(Date.now() + Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        department: 'IT',
+        location: 'Headquarters - Floor 1',
+        status: 'Assigned',
+        condition: ['New', 'Excellent', 'Good'][Math.floor(Math.random() * 3)],
+        assignedUser: {
+          id: userId,
+          name: 'Current User',
+          email: 'user@turnkeyafrica.com'
+        },
+        assignedUserId: userId,
+        image: 'https://images.unsplash.com/photo-1563770660941-20978e870e26?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
+        notes: `This ${assetType} is assigned to you.`
+      });
+    }
+  }
+  
+  return userAssets;
 };
