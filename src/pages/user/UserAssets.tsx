@@ -2,18 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SearchIcon, FilterIcon, MonitorIcon, ArrowRightIcon, CheckCircleIcon, AlertCircleIcon, XCircleIcon } from 'lucide-react';
-import { supabase, Asset } from '../../lib/supabase';
+import { useSupabase } from '../../hooks/useSupabase';
+import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
+import { Asset, supabase } from '../../lib/supabase';
 import { issueService } from '../../services/database';
 
 const UserAssets: React.FC = () => {
-  const {
-    user
-  } = useAuth();
-  const {
-    addNotification,
-    addToast
-  } = useNotifications();
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
+  const { isConnected, isConnecting, lastError, query } = useSupabase();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +40,7 @@ const UserAssets: React.FC = () => {
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   useEffect(() => {
-    // Fetch user's assets
+    // Fetch assets from Supabase
     const fetchAssets = async () => {
       try {
         // Check if user is authenticated
@@ -54,12 +51,14 @@ const UserAssets: React.FC = () => {
           return;
         }
         
-        // In a real app, this would be an API call
-        const { data, error } = await supabase
-          .from('assets')
-          .select('*')
-          .eq('assigned_to', user.id)
-          .order('created_at', { ascending: false });
+        // Fetch assets from Supabase
+        const { data, error } = await query(async () => {
+          return await supabase
+            .from('assets')
+            .select('*')
+            .eq('assigned_to', user.id)
+            .order('created_at', { ascending: false });
+        });
 
         if (error) {
           throw error;
@@ -73,17 +72,17 @@ const UserAssets: React.FC = () => {
           message: 'Failed to load assets',
           type: 'error'
         });
-        addToast({
-          title: 'Error',
-          message: 'Failed to load assets',
-          type: 'error'
-        });
+        // addToast({ // This line was removed as per the new_code, as per the new_code.
+        //   title: 'Error',
+        //   message: 'Failed to load assets',
+        //   type: 'error'
+        // });
       } finally {
         setLoading(false);
       }
     };
     fetchAssets();
-  }, [addNotification, user?.id]);
+  }, [addNotification, user?.id, query]);
 
   // Handle issue form submission
   const handleIssueSubmit = async (e: React.FormEvent) => {
@@ -120,18 +119,23 @@ const UserAssets: React.FC = () => {
       };
 
       // Submit to Supabase
-      const { error } = await supabase
-        .from('issues')
-        .insert({
-          title: newIssue.title,
-          description: newIssue.description,
-          status: 'open',
-          priority: newIssue.priority.toLowerCase(),
-          category: newIssue.type,
-          reported_by: user.id,
-          asset_id: selectedAsset.id,
-          department_id: selectedAsset.department_id
-        });
+      const { error } = await query(async () => {
+        return await supabase
+          .from('issues')
+          .insert({
+            title: newIssue.title,
+            description: newIssue.description,
+            status: 'Open',
+            priority: newIssue.priority,
+            category: newIssue.type,
+            reported_by: user.id,
+            assigned_to: null,
+            asset_id: selectedAsset.id,
+            department_id: selectedAsset.department_id,
+            estimated_resolution_date: null,
+            actual_resolution_date: null
+          });
+      });
 
       if (error) throw error;
 
@@ -151,11 +155,11 @@ const UserAssets: React.FC = () => {
         message: `Issue reported for ${selectedAsset.name}`,
         type: 'success'
       });
-      addToast({
-        title: 'Issue Reported',
-        message: `Issue reported for ${selectedAsset.name}`,
-        type: 'success'
-      });
+      // addToast({ // This line was removed as per the new_code, as per the new_code.
+      //   title: 'Issue Reported',
+      //   message: `Issue reported for ${selectedAsset.name}`,
+      //   type: 'success'
+      // });
     } catch (error) {
       console.error('Error reporting issue:', error);
       addNotification({
@@ -163,11 +167,11 @@ const UserAssets: React.FC = () => {
         message: 'Failed to report issue. Please try again.',
         type: 'error'
       });
-      addToast({
-        title: 'Error',
-        message: 'Failed to report issue. Please try again.',
-        type: 'error'
-      });
+      // addToast({ // This line was removed as per the new_code, as per the new_code.
+      //   title: 'Error',
+      //   message: 'Failed to report issue. Please try again.',
+      //   type: 'error'
+      // });
     } finally {
       setIsSubmittingIssue(false);
     }
@@ -195,11 +199,11 @@ const UserAssets: React.FC = () => {
         message: 'Your request for a new asset has been submitted successfully',
         type: 'success'
       });
-      addToast({
-        title: 'Request Submitted',
-        message: 'Your request for a new asset has been submitted successfully',
-        type: 'success'
-      });
+      // addToast({ // This line was removed as per the new_code, as per the new_code.
+      //   title: 'Request Submitted',
+      //   message: 'Your request for a new asset has been submitted successfully',
+      //   type: 'success'
+      // });
       
       // Reset form and close modal
       setNewAssetRequest({
@@ -215,11 +219,11 @@ const UserAssets: React.FC = () => {
         message: 'Failed to submit asset request. Please try again.',
         type: 'error'
       });
-      addToast({
-        title: 'Error',
-        message: 'Failed to submit asset request. Please try again.',
-        type: 'error'
-      });
+      // addToast({ // This line was removed as per the new_code, as per the new_code.
+      //   title: 'Error',
+      //   message: 'Failed to submit asset request. Please try again.',
+      //   type: 'error'
+      // });
     } finally {
       setIsSubmittingRequest(false);
     }
@@ -289,6 +293,34 @@ const UserAssets: React.FC = () => {
   }
   return (
     <div className="space-y-6">
+      {/* Connection Status Indicator */}
+      {!isConnected && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+          <div className="flex items-center space-x-3">
+            <WifiOffIcon className="w-5 h-5 text-red-500" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">
+                Database Connection Lost
+              </p>
+              <p className="text-xs text-red-600">
+                {lastError || 'Unable to connect to the database. Some features may be unavailable.'}
+              </p>
+            </div>
+            {isConnecting ? (
+              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Page Header */}
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <h1 className="text-3xl font-bold text-primary">My Assets</h1>
         <p className="mt-2 text-gray-700 dark:text-gray-300">View and manage your assigned assets, {user.name}.</p>

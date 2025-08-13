@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SearchIcon, FilterIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, RefreshCwIcon, AlertCircleIcon, UserIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon } from 'lucide-react';
-import { departments } from '../../utils/mockData';
+import { useSupabase } from '../../hooks/useSupabase';
+import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon } from 'lucide-react';
+import { User, Department } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 import { userService } from '../../services/database';
 const UserManagement: React.FC = () => {
-  const {
-    addNotification,
-    addToast
-  } = useNotifications();
-  const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const { user: currentUser } = useAuth();
+  const { addNotification } = useNotifications();
+  const { isConnected, isConnecting, lastError, query } = useSupabase();
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
@@ -21,16 +23,16 @@ const UserManagement: React.FC = () => {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [departmentsList, setDepartmentsList] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
     role: 'user',
-    department_id: 'IT',
+    department_id: '',
     position: '',
     phone: ''
   });
+
   useEffect(() => {
     // Fetch users and departments from Supabase
     const fetchData = async () => {
@@ -49,7 +51,7 @@ const UserManagement: React.FC = () => {
         if (deptError) {
           console.error('Error fetching departments:', deptError);
         } else {
-          setDepartmentsList(deptData);
+          setDepartments(deptData);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -82,7 +84,7 @@ const UserManagement: React.FC = () => {
     }
     setFilteredUsers(result);
   }, [users, searchTerm, filterRole, filterDepartment]);
-  const handleAddUser = async (e) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
@@ -140,11 +142,6 @@ const UserManagement: React.FC = () => {
         message: `New user "${newUser.name}" has been added successfully`,
         type: 'success'
       });
-      addToast({
-        title: 'User Added',
-        message: `New user "${newUser.name}" has been added successfully`,
-        type: 'success'
-      });
     } catch (error) {
       console.error('Error creating user:', error);
       addNotification({
@@ -152,16 +149,11 @@ const UserManagement: React.FC = () => {
         message: error.message || 'Failed to create user. Please try again.',
         type: 'error'
       });
-      addToast({
-        title: 'Error',
-        message: error.message || 'Failed to create user. Please try again.',
-        type: 'error'
-      });
     }
   };
-  const handleEditUser = async (e) => {
+  const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser) return;
+    if (!editingUser) return;
     
     try {
       // Get the department ID from the department name
@@ -191,7 +183,7 @@ const UserManagement: React.FC = () => {
           phone: newUser.phone,
           updated_at: new Date().toISOString()
         })
-        .eq('id', selectedUser.id);
+        .eq('id', editingUser.id);
       
       if (profileError) {
         throw profileError;
@@ -203,7 +195,7 @@ const UserManagement: React.FC = () => {
       
       // Close modal and reset form
       setShowEditUserModal(false);
-      setSelectedUser(null);
+      setEditingUser(null);
       setNewUser({
         name: '',
         email: '',
@@ -218,11 +210,6 @@ const UserManagement: React.FC = () => {
         message: `User "${newUser.name}" has been updated successfully`,
         type: 'success'
       });
-      addToast({
-        title: 'User Updated',
-        message: `User "${newUser.name}" has been updated successfully`,
-        type: 'success'
-      });
     } catch (error) {
       console.error('Error updating user:', error);
       addNotification({
@@ -230,22 +217,17 @@ const UserManagement: React.FC = () => {
         message: error.message || 'Failed to update user. Please try again.',
         type: 'error'
       });
-      addToast({
-        title: 'Error',
-        message: error.message || 'Failed to update user. Please try again.',
-        type: 'error'
-      });
     }
   };
   const handleDeleteUser = async () => {
-    if (!selectedUser) return;
+    if (!editingUser) return;
     
     try {
       // Delete user profile from the users table
       const { error: profileError } = await supabase
         .from('users')
         .delete()
-        .eq('id', selectedUser.id);
+        .eq('id', editingUser.id);
       
       if (profileError) {
         throw profileError;
@@ -258,25 +240,15 @@ const UserManagement: React.FC = () => {
       // Show notification and close modal
       addNotification({
         title: 'User Deleted',
-        message: `User "${selectedUser.name}" has been deleted successfully`,
+        message: `User "${editingUser.name}" has been deleted successfully`,
         type: 'info'
-      });
-      addToast({
-        title: 'User Deleted',
-        message: `User "${selectedUser.name}" has been deleted successfully`,
-        type: 'success'
       });
       
       setShowDeleteModal(false);
-      setSelectedUser(null);
+      setEditingUser(null);
     } catch (error) {
       console.error('Error deleting user:', error);
       addNotification({
-        title: 'Error',
-        message: error.message || 'Failed to delete user. Please try again.',
-        type: 'error'
-      });
-      addToast({
         title: 'Error',
         message: error.message || 'Failed to delete user. Please try again.',
         type: 'error'
@@ -286,7 +258,7 @@ const UserManagement: React.FC = () => {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser) return;
+    if (!editingUser) return;
     if (newPassword.length < 8) {
       addNotification({
         title: 'Weak password',
@@ -307,7 +279,7 @@ const UserManagement: React.FC = () => {
     try {
       // Update password using Supabase Auth Admin API
       const { error } = await supabase.auth.admin.updateUserById(
-        selectedUser.id,
+        editingUser.id,
         { password: newPassword }
       );
       
@@ -317,12 +289,12 @@ const UserManagement: React.FC = () => {
       
       addNotification({
         title: 'Password Updated',
-        message: `Password for "${selectedUser.name}" has been updated successfully`,
+        message: `Password for "${editingUser.name}" has been updated successfully`,
         type: 'success'
       });
       
       setShowChangePasswordModal(false);
-      setSelectedUser(null);
+      setEditingUser(null);
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
@@ -334,7 +306,7 @@ const UserManagement: React.FC = () => {
       });
     }
   };
-  const getRoleBadgeClass = role => {
+  const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case 'admin':
         return 'bg-red-100 text-red-800';
@@ -346,7 +318,7 @@ const UserManagement: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
-  const formatRoleName = role => {
+  const formatRoleName = (role: string) => {
     switch (role) {
       case 'admin':
         return 'Administrator';
@@ -359,9 +331,9 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const getDepartmentName = (departmentId) => {
+  const getDepartmentName = (departmentId: string) => {
     if (!departmentId) return 'N/A';
-    const dept = departmentsList.find(d => d.id === departmentId);
+    const dept = departments.find(d => d.id === departmentId);
     return dept ? dept.name : 'N/A';
   };
   if (loading) {
@@ -462,7 +434,7 @@ const UserManagement: React.FC = () => {
             </div>
             <select className="block w-full pl-10 pr-8 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)}>
               <option value="All">All Departments</option>
-              {departmentsList.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
+              {departments.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
             </select>
           </div>
           <button onClick={() => { setSearchTerm(''); setFilterRole('All'); setFilterDepartment('All'); }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90 flex items-center">
@@ -511,9 +483,9 @@ const UserManagement: React.FC = () => {
               <td className="px-6 py-4">{user.phone || 'N/A'}</td>
               <td className="px-6 py-4">
                 <div className="flex space-x-2">
-                  <button onClick={() => { setSelectedUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id, position: user.position, phone: user.phone }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
-                  <button onClick={() => { setSelectedUser(user); setShowChangePasswordModal(true); }} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Change Password"><LockIcon className="w-5 h-5" /></button>
-                  <button onClick={() => { setSelectedUser(user); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete User" disabled={user.role === 'admin'}><TrashIcon className="w-5 h-5" style={{ opacity: user.role === 'admin' ? 0.5 : 1 }} /></button>
+                  <button onClick={() => { setEditingUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id, position: user.position, phone: user.phone }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setEditingUser(user); setShowChangePasswordModal(true); }} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Change Password"><LockIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setEditingUser(user); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete User" disabled={user.role === 'admin'}><TrashIcon className="w-5 h-5" style={{ opacity: user.role === 'admin' ? 0.5 : 1 }} /></button>
                 </div>
               </td>
             </tr>)}
@@ -575,7 +547,7 @@ const UserManagement: React.FC = () => {
               <label className="block mb-2 text-sm font-medium text-primary">Department</label>
               <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newUser.department_id || ''} onChange={e => setNewUser({ ...newUser, department_id: e.target.value })} required>
                 <option value="">Select Department</option>
-                {departmentsList.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
+                {departments.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
               </select>
             </div>
             <div>
@@ -601,7 +573,7 @@ const UserManagement: React.FC = () => {
     </div>}
 
       {/* Edit User Modal */}
-      {showEditUserModal && selectedUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      {showEditUserModal && editingUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
@@ -609,7 +581,7 @@ const UserManagement: React.FC = () => {
               </h3>
               <button onClick={() => {
             setShowEditUserModal(false);
-            setSelectedUser(null);
+            setEditingUser(null);
           }} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <XCircleIcon className="w-6 h-6" />
               </button>
@@ -668,7 +640,7 @@ const UserManagement: React.FC = () => {
                 department_id: e.target.value
               })} required>
                     <option value="">Select Department</option>
-                    {departmentsList.map(department => <option key={department.id} value={department.name}>
+                    {departments.map(department => <option key={department.id} value={department.name}>
                         {department.name}
                       </option>)}
                   </select>
@@ -700,7 +672,7 @@ const UserManagement: React.FC = () => {
               <div className="flex justify-end space-x-2">
                 <button type="button" onClick={() => {
               setShowEditUserModal(false);
-              setSelectedUser(null);
+              setEditingUser(null);
             }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
                   Cancel
                 </button>
@@ -713,7 +685,7 @@ const UserManagement: React.FC = () => {
         </div>}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      {showDeleteModal && editingUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
@@ -721,25 +693,25 @@ const UserManagement: React.FC = () => {
               </h3>
               <button onClick={() => {
             setShowDeleteModal(false);
-            setSelectedUser(null);
+            setEditingUser(null);
           }} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <XCircleIcon className="w-6 h-6" />
               </button>
             </div>
             <div className="mb-6">
               <p className="text-gray-700 dark:text-gray-300">
-                Are you sure you want to delete the user "{selectedUser.name}"?
+                Are you sure you want to delete the user "{editingUser.name}"?
                 This action cannot be undone.
               </p>
             </div>
             <div className="flex justify-end space-x-2">
               <button onClick={() => {
             setShowDeleteModal(false);
-            setSelectedUser(null);
+            setEditingUser(null);
           }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
                 Cancel
               </button>
-              <button onClick={handleDeleteUser} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700" disabled={selectedUser.role === 'admin'}>
+              <button onClick={handleDeleteUser} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700" disabled={editingUser.role === 'admin'}>
                 Delete User
               </button>
             </div>
@@ -747,13 +719,13 @@ const UserManagement: React.FC = () => {
         </div>}
 
       {/* Change Password Modal */}
-      {showChangePasswordModal && selectedUser && (
+      {showChangePasswordModal && editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Change Password</h3>
               <button
-                onClick={() => { setShowChangePasswordModal(false); setSelectedUser(null); setNewPassword(''); setConfirmPassword(''); }}
+                onClick={() => { setShowChangePasswordModal(false); setEditingUser(null); setNewPassword(''); setConfirmPassword(''); }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 <XCircleIcon className="w-6 h-6" />
@@ -788,7 +760,7 @@ const UserManagement: React.FC = () => {
               <div className="mt-6 flex justify-end space-x-2">
                 <button
                   type="button"
-                  onClick={() => { setShowChangePasswordModal(false); setSelectedUser(null); setNewPassword(''); setConfirmPassword(''); }}
+                  onClick={() => { setShowChangePasswordModal(false); setEditingUser(null); setNewPassword(''); setConfirmPassword(''); }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
                 >
                   Cancel

@@ -26,6 +26,8 @@ import AssetDetails from './pages/shared/AssetDetails';
 import NotificationsPage from './pages/shared/NotificationsPage';
 import Settings from './pages/shared/Settings';
 import { supabase } from './lib/supabase';
+import { useSupabase } from './hooks/useSupabase';
+import ConnectionStatus from './components/ui/ConnectionStatus';
 
 function RoleIndexRedirect() {
   const { user, isLoading } = useAuth();
@@ -48,27 +50,25 @@ function App() {
   const [dbStatus, setDbStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   useEffect(() => {
-    // Test database connection
-    const testConnection = async () => {
+    const checkConnection = async () => {
       try {
         const { data, error } = await supabase
           .from('departments')
-          .select('count')
-          .limit(1);
+          .select('count', { count: 'exact', head: true });
         
         if (error) {
-          console.error('Database connection error:', error);
+          console.error('Database connection check failed:', error);
           setDbStatus('error');
         } else {
           setDbStatus('connected');
         }
       } catch (error) {
-        console.error('Database connection failed:', error);
+        console.error('Database connection error:', error);
         setDbStatus('error');
       }
     };
 
-    testConnection();
+    checkConnection();
   }, []);
 
   if (dbStatus === 'connecting') {
@@ -110,6 +110,7 @@ function App() {
     <ThemeProvider>
       <NotificationProvider>
         <AuthProvider>
+          <ConnectionStatus />
           <Router>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -122,7 +123,7 @@ function App() {
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="users" element={<UserManagement />} />
                   <Route path="assets" element={<AssetManagement />} />
-                  <Route path="assets/edit/:assetId" element={<AssetManagement editMode={true} />} />
+                  <Route path="assets/edit/:assetId" element={<AssetManagement />} />
                   <Route path="departments" element={<DepartmentManagement />} />
                   <Route path="issues" element={<IssueManagement />} />
                 </Route>
