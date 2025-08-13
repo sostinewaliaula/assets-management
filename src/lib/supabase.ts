@@ -4,10 +4,72 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+  console.error('Missing Supabase environment variables:', {
+    url: supabaseUrl ? 'Present' : 'Missing',
+    key: supabaseAnonKey ? 'Present' : 'Missing'
+  })
+  throw new Error('Missing Supabase environment variables. Please check your .env file.')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create Supabase client with improved configuration
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'turnkey-ams-web'
+    }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+})
+
+// Add connection health check
+export const checkConnection = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('count', { count: 'exact', head: true })
+    
+    if (error) {
+      console.error('Database connection check failed:', error)
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Database connection error:', error)
+    return false
+  }
+}
+
+// Add reconnection logic
+export const reconnectSupabase = async () => {
+  try {
+    console.log('Attempting to reconnect to Supabase...')
+    const isConnected = await checkConnection()
+    
+    if (isConnected) {
+      console.log('Successfully reconnected to Supabase')
+      return true
+    } else {
+      console.log('Failed to reconnect to Supabase')
+      return false
+    }
+  } catch (error) {
+    console.error('Reconnection error:', error)
+    return false
+  }
+}
 
 // Database types
 export interface Department {

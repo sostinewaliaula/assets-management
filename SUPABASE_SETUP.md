@@ -1,107 +1,60 @@
 # Supabase Setup Guide
 
-This guide will help you connect your assets management application to Supabase.
+## Environment Variables
 
-## Prerequisites
+Create a `.env` file in your project root with the following variables:
 
-1. A Supabase account (sign up at [supabase.com](https://supabase.com))
-2. Node.js and npm installed
-
-## Step 1: Create a Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and sign in
-2. Click "New Project"
-3. Choose your organization
-4. Enter a project name (e.g., "assets-management")
-5. Enter a database password (save this securely)
-6. Choose a region close to your users
-7. Click "Create new project"
-
-## Step 2: Get Your Project Credentials
-
-1. In your Supabase project dashboard, go to Settings > API
-2. Copy the following values:
-   - Project URL
-   - Anon (public) key
-
-## Step 3: Set Up Environment Variables
-
-1. Create a `.env` file in your project root (if it doesn't exist)
-2. Add the following variables:
-
-```env
-VITE_SUPABASE_URL=your_project_url_here
-VITE_SUPABASE_ANON_KEY=your_anon_key_here
+```bash
+VITE_SUPABASE_URL=your_supabase_project_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
 
-3. Replace the placeholder values with your actual Supabase credentials
+## How to Get Your Supabase Credentials
 
-## Step 4: Set Up the Database
+1. Go to [supabase.com](https://supabase.com) and sign in
+2. Select your project
+3. Go to **Settings** → **API**
+4. Copy the **Project URL** and **anon public** key
 
-1. In your Supabase dashboard, go to SQL Editor
-2. Copy the contents of `supabase-schema.sql`
-3. Paste it into the SQL editor and click "Run"
-4. This will create all the necessary tables and sample data
+## Example .env File
 
-## Step 5: Test the Connection
+```bash
+VITE_SUPABASE_URL=https://abcdefghijklmnop.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
-1. Start your development server: `npm run dev`
-2. Navigate to the Department Management page
-3. You should see the sample departments loaded from the database
-4. Try adding, editing, or deleting a department
+## Common Connection Issues & Solutions
 
-## Database Schema
+### 1. Missing Environment Variables
+- Ensure your `.env` file exists and has the correct values
+- Restart your development server after adding environment variables
 
-The application uses the following tables:
+### 2. Network/Firewall Issues
+- Check if your network allows connections to Supabase
+- Verify your Supabase project is not paused
 
-- **departments**: Company departments with managers and locations
-- **users**: System users with roles and department assignments
-- **assets**: Company assets with types, values, and assignments
-- **issues**: Support tickets and maintenance requests
+### 3. Rate Limiting
+- Supabase has rate limits on the free tier
+- Consider upgrading if you're hitting limits
 
-## Row Level Security (RLS)
+### 4. Authentication Issues
+- Ensure your RLS (Row Level Security) policies are correct
+- Check if your user has proper permissions
 
-The database includes Row Level Security policies:
-- All users can view data
-- Only admin users can modify data
-- Policies are based on the user's role in the JWT token
+## Testing Your Connection
+
+After setting up, you can test your connection by:
+
+1. Opening the browser console
+2. Looking for connection status messages
+3. Checking if the connection indicator shows "Connected"
 
 ## Troubleshooting
 
-### Common Issues
+If you still have connection issues:
 
-1. **"Missing Supabase environment variables" error**
-   - Ensure your `.env` file exists and contains the correct credentials
-   - Restart your development server after adding environment variables
-
-2. **Database connection errors**
-   - Verify your Supabase project is active
-   - Check that your database password is correct
-   - Ensure your IP is not blocked by Supabase
-
-3. **Permission denied errors**
-   - Check that the RLS policies are properly set up
-   - Verify the user has the correct role
-
-### Getting Help
-
-- Check the [Supabase documentation](https://supabase.com/docs)
-- Review the browser console for error messages
-- Check the Supabase dashboard logs
-
-## Next Steps
-
-After setting up the database:
-
-1. Implement user authentication using Supabase Auth
-2. Add more sophisticated RLS policies
-3. Set up real-time subscriptions for live updates
-4. Add database backups and monitoring
-5. Implement user roles and permissions
-
-## Security Notes
-
-- Never commit your `.env` file to version control
-- Use environment variables for all sensitive configuration
-- Regularly rotate your database passwords
-- Monitor your Supabase usage and costs
+1. **Clear browser cache and cookies**
+2. **Restart your development server**
+3. **Check Supabase project status** (not paused)
+4. **Verify environment variables** are loaded correctly
+5. **Check browser console** for error messages

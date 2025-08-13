@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
+import { useSupabase } from '../../hooks/useSupabase';
+import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon, WifiIcon, WifiOffIcon } from 'lucide-react';
 import { assetService, userService, departmentService, issueService } from '../../services/database';
 import { Asset, User, Department, Issue, supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
@@ -11,6 +12,7 @@ const AssetDetails: React.FC = () => {
   const { assetId } = useParams();
   const { user } = useAuth();
   const { addNotification, addToast } = useNotifications();
+  const { isConnected, isConnecting, lastError, query } = useSupabase();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [assignedUser, setAssignedUser] = useState<User | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -130,11 +132,13 @@ const AssetDetails: React.FC = () => {
         actual_resolution_date: null
       };
       
-      // Create the issue in Supabase
-      const { data, error } = await supabase
-        .from('issues')
-        .insert([newIssueObj])
-        .select();
+      // Create the issue using enhanced query function with automatic reconnection
+      const { data, error } = await query(async () => {
+        return await supabase
+          .from('issues')
+          .insert([newIssueObj])
+          .select();
+      });
       
       if (error) {
         throw error;
@@ -240,6 +244,33 @@ const AssetDetails: React.FC = () => {
     </div>;
   }
   return <div className="space-y-6">
+    {/* Connection Status Indicator */}
+    {!isConnected && (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+        <div className="flex items-center space-x-3">
+          <WifiOffIcon className="w-5 h-5 text-red-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800">
+              Database Connection Lost
+            </p>
+            <p className="text-xs text-red-600">
+              {lastError || 'Unable to connect to the database. Some features may be unavailable.'}
+            </p>
+          </div>
+          {isConnecting ? (
+            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+          ) : (
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+    
     {/* Asset Details Header */}
     <div className="flex flex-col justify-between p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card md:flex-row md:items-center">
       <div className="flex items-center">
@@ -422,6 +453,18 @@ const AssetDetails: React.FC = () => {
               </button>
             </div>
             
+            {/* Connection Warning */}
+            {!isConnected && (
+              <div className="p-4 mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <WifiOffIcon className="w-4 h-4 text-red-500" />
+                  <p className="text-sm text-red-700">
+                    You're currently offline. Please check your connection before submitting.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             {/* Asset Info Section */}
             {asset && (
               <div className="p-6 bg-lightgreen/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
@@ -540,7 +583,7 @@ const AssetDetails: React.FC = () => {
                   const form = document.querySelector('form');
                   if (form) form.requestSubmit();
                 }}
-                disabled={isSubmittingIssue}
+                disabled={isSubmittingIssue || !isConnected}
                 className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] shadow-lg"
               >
                 {isSubmittingIssue ? (
@@ -548,6 +591,8 @@ const AssetDetails: React.FC = () => {
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     Submitting...
                   </>
+                ) : !isConnected ? (
+                  'Offline'
                 ) : (
                   'Submit Issue'
                 )}
