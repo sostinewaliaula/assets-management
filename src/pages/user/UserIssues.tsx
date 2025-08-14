@@ -3,15 +3,14 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, PlusIcon, XCircleIcon, InfoIcon } from 'lucide-react';
-import { generateMockAssets, generateMockIssues } from '../../utils/mockData';
+import { supabase } from '../../lib/supabase';
+import { useSupabase } from '../../hooks/useSupabase';
+import ConnectionStatus from '../../components/ui/ConnectionStatus';
+
 const UserIssues: React.FC = () => {
-  const {
-    user
-  } = useAuth();
-  const {
-    addNotification,
-    addToast
-  } = useNotifications();
+  const { user } = useAuth();
+  const { addNotification, addToast } = useNotifications();
+  const { isConnected, isConnecting, lastError, query } = useSupabase();
   const [assets, setAssets] = useState([]);
   const [issues, setIssues] = useState([]);
   const [filteredIssues, setFilteredIssues] = useState([]);
@@ -27,16 +26,32 @@ const UserIssues: React.FC = () => {
     type: 'Hardware Failure',
     priority: 'Medium'
   });
+
   useEffect(() => {
-    // Fetch user's issues and assets
+    // Fetch user's issues and assets from Supabase
     const fetchData = async () => {
       try {
-        // In a real app, this would be API calls
-        const mockAssets = generateMockAssets(15);
-        setAssets(mockAssets);
-        const mockIssues = generateMockIssues(mockAssets, 20);
-        setIssues(mockIssues);
-        setFilteredIssues(mockIssues);
+        setLoading(true);
+        // Fetch assets assigned to the user
+        const { data: assetData, error: assetError } = await query(async () => {
+          return await supabase
+            .from('assets')
+            .select('*')
+            .eq('assigned_to', user.id);
+        });
+        if (assetError) throw assetError;
+        setAssets(assetData || []);
+        // Fetch issues reported by the user
+        const { data: issueData, error: issueError } = await query(async () => {
+          return await supabase
+            .from('issues')
+            .select('*')
+            .eq('reported_by', user.id)
+            .order('created_at', { ascending: false });
+        });
+        if (issueError) throw issueError;
+        setIssues(issueData || []);
+        setFilteredIssues(issueData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
         addNotification({
@@ -53,8 +68,8 @@ const UserIssues: React.FC = () => {
         setLoading(false);
       }
     };
-    fetchData();
-  }, [addNotification]);
+    if (user?.id) fetchData();
+  }, [addNotification, user?.id, query]);
   useEffect(() => {
     // Filter issues based on search term and filters
     let result = issues;
@@ -178,6 +193,7 @@ const UserIssues: React.FC = () => {
   }
   return (
     <>
+      <ConnectionStatus showOnlyWhenOffline={true} className="mb-4" />
       <div className="space-y-6">
         <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <div className="flex items-center justify-between">
@@ -306,8 +322,8 @@ const UserIssues: React.FC = () => {
                     <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(issue.priority)}`}>{issue.priority}</span>
                     </td>
-                  <td className="px-6 py-4">{new Date(issue.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">{new Date(issue.updatedAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4">{new Date(issue.created_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4">{new Date(issue.updated_at).toLocaleDateString()}</td>
                   </tr>)}
               </tbody>
             </table>

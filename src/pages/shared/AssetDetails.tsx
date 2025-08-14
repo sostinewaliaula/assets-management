@@ -27,6 +27,8 @@ const AssetDetails: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const isAdmin = user?.role === 'admin';
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
+  const [showDisposeModal, setShowDisposeModal] = useState(false);
+  const [isDisposing, setIsDisposing] = useState(false);
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -185,6 +187,34 @@ const AssetDetails: React.FC = () => {
       setIsSubmittingIssue(false);
     }
   };
+
+  // Dispose asset handler
+  const handleDisposeAsset = async () => {
+    if (!asset) return;
+    setIsDisposing(true);
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .update({ status: 'Disposed' })
+        .eq('id', asset.id);
+      if (error) throw error;
+      setAsset({ ...asset, status: 'Disposed' });
+      addNotification({
+        title: 'Asset Disposed',
+        message: `${asset.name} has been marked as Disposed.`,
+        type: 'success',
+      });
+      setShowDisposeModal(false);
+    } catch (error) {
+      addNotification({
+        title: 'Error',
+        message: 'Failed to dispose asset. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setIsDisposing(false);
+    }
+  };
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
@@ -294,10 +324,18 @@ const AssetDetails: React.FC = () => {
         <button onClick={() => setShowIssueForm(true)} className="button-primary flex items-center">
           <AlertCircleIcon className="w-4 h-4 mr-2" /> Report Issue
         </button>
-        {isAdmin && <div className="flex space-x-2">
-          <Link to={`/admin/assets/edit/${asset.id}`} className="px-4 py-2 text-sm font-medium text-secondary border border-secondary rounded-full hover:bg-lightpurple">Edit Asset</Link>
-          <button className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 rounded-full hover:bg-red-50">Dispose Asset</button>
-        </div>}
+        {isAdmin && (
+          <div className="flex space-x-2">
+            <Link to={`/admin/assets/edit/${asset.id}`} className="px-4 py-2 text-sm font-medium text-secondary border border-secondary rounded-full hover:bg-lightpurple">Edit Asset</Link>
+            <button
+              className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 rounded-full hover:bg-red-50"
+              onClick={() => setShowDisposeModal(true)}
+              disabled={asset.status === 'Disposed'}
+            >
+              Dispose Asset
+            </button>
+          </div>
+        )}
       </div>
     </div>
     {/* Asset Details Content */}
@@ -600,6 +638,38 @@ const AssetDetails: React.FC = () => {
             </div>
           </div>
         </div>}
+  {/* Dispose Confirmation Modal */}
+  {showDisposeModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-red-700">Dispose Asset</h3>
+          <button onClick={() => setShowDisposeModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <XCircleIcon className="w-6 h-6" />
+          </button>
+        </div>
+        <p className="mb-6 text-gray-700 dark:text-gray-300">Are you sure you want to mark <span className="font-bold">{asset.name}</span> as <span className="text-red-700">Disposed</span>? This action cannot be undone.</p>
+        <div className="flex justify-end space-x-2">
+          <button
+            type="button"
+            onClick={() => setShowDisposeModal(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200"
+            disabled={isDisposing}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleDisposeAsset}
+            className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-red-600 to-red-400 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isDisposing}
+          >
+            {isDisposing ? 'Disposing...' : 'Confirm Dispose'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
   </div>;
 };
 export default AssetDetails;
