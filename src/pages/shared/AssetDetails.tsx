@@ -29,6 +29,11 @@ const AssetDetails: React.FC = () => {
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
   const [showDisposeModal, setShowDisposeModal] = useState(false);
   const [isDisposing, setIsDisposing] = useState(false);
+  const [showEditAssetModal, setShowEditAssetModal] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
+  const [usersList, setUsersList] = useState<User[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -111,6 +116,24 @@ const AssetDetails: React.FC = () => {
     
     fetchAssetDetails();
   }, [assetId, addNotification, user]);
+
+  useEffect(() => {
+    // Fetch departments and users for dropdowns
+    const fetchDropdowns = async () => {
+      try {
+        const [departments, users] = await Promise.all([
+          departmentService.getAll(),
+          userService.getAll(),
+        ]);
+        setDepartmentsList(departments);
+        setUsersList(users);
+      } catch (error) {
+        // ignore for now
+      }
+    };
+    if (isAdmin) fetchDropdowns();
+  }, [isAdmin]);
+
   const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -213,6 +236,42 @@ const AssetDetails: React.FC = () => {
       });
     } finally {
       setIsDisposing(false);
+    }
+  };
+
+  // Edit asset logic
+  const handleEditAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAsset) return;
+    setIsUpdating(true);
+    try {
+      const updated = await assetService.update(editingAsset.id, editingAsset);
+      setAsset(updated);
+      setShowEditAssetModal(false);
+      setEditingAsset(null);
+      addNotification({
+        title: 'Asset Updated',
+        message: `Asset "${updated.name}" has been updated successfully`,
+        type: 'success',
+      });
+      addToast({
+        title: 'Asset Updated',
+        message: `Asset "${updated.name}" has been updated successfully`,
+        type: 'success',
+      });
+    } catch (error) {
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update asset. Please try again.',
+        type: 'error',
+      });
+      addToast({
+        title: 'Error',
+        message: 'Failed to update asset. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setIsUpdating(false);
     }
   };
   const formatDate = (dateString: string | null) => {
@@ -326,7 +385,15 @@ const AssetDetails: React.FC = () => {
         </button>
         {isAdmin && (
           <div className="flex space-x-2">
-            <Link to={`/admin/assets/edit/${asset.id}`} className="px-4 py-2 text-sm font-medium text-secondary border border-secondary rounded-full hover:bg-lightpurple">Edit Asset</Link>
+            <button
+              className="px-4 py-2 text-sm font-medium text-secondary border border-secondary rounded-full hover:bg-lightpurple"
+              onClick={() => {
+                setEditingAsset(asset);
+                setShowEditAssetModal(true);
+              }}
+            >
+              Edit Asset
+            </button>
             <button
               className="px-4 py-2 text-sm font-medium text-red-600 border border-red-600 rounded-full hover:bg-red-50"
               onClick={() => setShowDisposeModal(true)}
@@ -667,6 +734,114 @@ const AssetDetails: React.FC = () => {
             {isDisposing ? 'Disposing...' : 'Confirm Dispose'}
           </button>
         </div>
+      </div>
+    </div>
+  )}
+  {/* Edit Asset Modal */}
+  {showEditAssetModal && editingAsset && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="w-full max-w-4xl p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-primary">Edit Asset: {editingAsset.name}</h3>
+          <button onClick={() => setShowEditAssetModal(false)} className="text-gray-500 hover:text-gray-700">
+            <XCircleIcon className="w-6 h-6" />
+          </button>
+        </div>
+        <form onSubmit={handleEditAsset}>
+          <div className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Asset Name</label>
+              <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.name} onChange={e => setEditingAsset({ ...editingAsset, name: e.target.value })} required />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Asset Type</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.type} onChange={e => setEditingAsset({ ...editingAsset, type: e.target.value })} required>
+                {['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet', 'Printer', 'Server', 'Router', 'Switch', 'Projector', 'Camera', 'Furniture', 'Vehicle'].map(type => <option key={type} value={type}>{type}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Manufacturer</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.manufacturer} onChange={e => setEditingAsset({ ...editingAsset, manufacturer: e.target.value })} required>
+                {['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Samsung', 'Cisco', 'Logitech', 'Canon', 'Epson', 'LG', 'ASUS', 'Acer', 'Sony', 'Brother'].map(manufacturer => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Model</label>
+              <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.model} onChange={e => setEditingAsset({ ...editingAsset, model: e.target.value })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Purchase Price</label>
+              <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.purchase_price} onChange={e => setEditingAsset({ ...editingAsset, purchase_price: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Current Value</label>
+              <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.current_value} onChange={e => setEditingAsset({ ...editingAsset, current_value: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Category</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.category} onChange={e => setEditingAsset({ ...editingAsset, category: e.target.value })} required>
+                <option value="Electronics">Electronics</option>
+                <option value="Furniture">Furniture</option>
+                <option value="Vehicles">Vehicles</option>
+                <option value="Office Equipment">Office Equipment</option>
+                <option value="Software">Software</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Serial Number</label>
+              <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.serial_number} onChange={e => setEditingAsset({ ...editingAsset, serial_number: e.target.value })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Purchase Date</label>
+              <input type="date" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.purchase_date || ''} onChange={e => setEditingAsset({ ...editingAsset, purchase_date: e.target.value })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Warranty End Date</label>
+              <input type="date" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.warranty_expiry || ''} onChange={e => setEditingAsset({ ...editingAsset, warranty_expiry: e.target.value })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Department</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.department_id || ''} onChange={e => setEditingAsset({ ...editingAsset, department_id: e.target.value || '' })} required>
+                <option value="">Select Department</option>
+                {departmentsList.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Location</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.location} onChange={e => setEditingAsset({ ...editingAsset, location: e.target.value })} required>
+                {['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'].map(location => <option key={location} value={location}>{location}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Status</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.status} onChange={e => setEditingAsset({ ...editingAsset, status: e.target.value })} required>
+                {['Available', 'Assigned', 'In Maintenance', 'Reserved', 'Disposed'].map(status => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Condition</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.condition} onChange={e => setEditingAsset({ ...editingAsset, condition: e.target.value })} required>
+                {['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'].map(condition => <option key={condition} value={condition}>{condition}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-primary">Assigned To</label>
+            <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.assigned_to || ''} onChange={e => setEditingAsset({ ...editingAsset, assigned_to: e.target.value || null })}>
+              <option value="">Select User</option>
+              {usersList.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block mb-2 text-sm font-medium text-primary">Notes</label>
+            <textarea className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={3} value={editingAsset.notes || ''} onChange={e => setEditingAsset({ ...editingAsset, notes: e.target.value })}></textarea>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <button type="button" onClick={() => setShowEditAssetModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button type="submit" className="button-primary px-4 py-2 text-sm font-medium" disabled={isUpdating}>{isUpdating ? 'Saving...' : 'Save Changes'}</button>
+          </div>
+        </form>
       </div>
     </div>
   )}
