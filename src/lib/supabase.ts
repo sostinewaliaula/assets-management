@@ -135,6 +135,17 @@ export interface Issue {
   department_id: string | null
   estimated_resolution_date: string | null
   actual_resolution_date: string | null
+  comment_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface IssueComment {
+  id: string
+  issue_id: string
+  user_id: string
+  user_name: string
+  content: string
   created_at: string
   updated_at: string
 }

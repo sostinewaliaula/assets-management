@@ -1,4 +1,4 @@
-import { supabase, Department, Asset, User, Issue, AssetMaintenance } from '../lib/supabase'
+import { supabase, Department, Asset, User, Issue, IssueComment, AssetMaintenance } from '../lib/supabase'
 
 // Department operations
 export const departmentService = {
@@ -254,6 +254,106 @@ export const issueService = {
       .eq('id', id)
     
     if (error) throw error
+  }
+}
+
+// Comment operations
+export const commentService = {
+  async getByIssue(issueId: string): Promise<IssueComment[]> {
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async create(comment: Omit<IssueComment, 'id' | 'created_at' | 'updated_at'>): Promise<IssueComment> {
+    console.log('Attempting to create comment with data:', comment);
+    
+    // Get the user name from the users table
+    let userName = 'Unknown User';
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', comment.user_id)
+        .single();
+      
+      if (userData?.name) {
+        userName = userData.name;
+      }
+    } catch (error) {
+      console.warn('Could not fetch user name, using default:', error);
+    }
+    
+    const commentData = {
+      ...comment,
+      user_name: userName
+    };
+    
+    console.log('Creating comment with full data:', commentData);
+    
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .insert([commentData])
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase error creating comment:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+    
+    console.log('Comment created successfully:', data);
+    return data
+  },
+
+  async update(id: string, updates: Partial<IssueComment>): Promise<IssueComment> {
+    const { data, error } = await supabase
+      .from('issue_comments')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async delete(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('issue_comments')
+      .delete()
+      .eq('id', id)
+    
+    if (error) throw error
+  },
+
+  // Test function to check table structure
+  async testTableStructure(): Promise<void> {
+    try {
+      const { data, error } = await supabase
+        .from('issue_comments')
+        .select('*')
+        .limit(1)
+      
+      if (error) {
+        console.error('Error testing table structure:', error);
+      } else {
+        console.log('Table structure test successful. Sample data:', data);
+      }
+    } catch (error) {
+      console.error('Exception testing table structure:', error);
+    }
   }
 }
 

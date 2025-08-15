@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon } from 'lucide-react';
-import { issueService, assetService, userService } from '../../services/database';
-import { Issue, Asset, User } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon, TrashIcon, EditIcon } from 'lucide-react';
+import { issueService, assetService, userService, commentService } from '../../services/database';
+import { Issue, Asset, User, IssueComment } from '../../lib/supabase';
 
 // Static data for dropdowns
 const issueStatuses = ['Open', 'In Progress', 'Pending User Action', 'Pending Parts', 'Resolved', 'Closed'];
@@ -15,6 +16,8 @@ const IssueManagement: React.FC = () => {
     addToast
   } = useNotifications();
   
+  const { user } = useAuth();
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -29,6 +32,9 @@ const IssueManagement: React.FC = () => {
   const [newStatus, setNewStatus] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [comments, setComments] = useState<IssueComment[]>([]);
+  const [editingComment, setEditingComment] = useState<IssueComment | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState('');
 
   useEffect(() => {
     // Fetch issues, assets, and users
@@ -63,6 +69,16 @@ const IssueManagement: React.FC = () => {
     };
     fetchData();
   }, [addNotification]);
+
+  // Debug user object
+  useEffect(() => {
+    console.log('Current user object:', user);
+    console.log('User ID:', user?.id);
+    console.log('User email:', user?.email);
+    
+    // Test table structure on load
+    commentService.testTableStructure();
+  }, [user]);
 
   useEffect(() => {
     // Filter and sort issues
@@ -121,31 +137,152 @@ const IssueManagement: React.FC = () => {
     setFilteredIssues(result);
   }, [issues, assets, users, searchTerm, filterStatus, filterPriority, sortBy, sortDirection]);
 
-  const handleAddComment = async () => {
-    if (!selectedIssue || !newComment.trim()) return;
-    
+  // Fetch comments when an issue is selected
+  useEffect(() => {
+    if (selectedIssue) {
+      fetchComments(selectedIssue.id);
+    }
+  }, [selectedIssue]);
+
+  const fetchComments = async (issueId: string) => {
     try {
-      // In a real implementation, you would add a comments table to your database
-      // For now, we'll just show a notification that this feature needs to be implemented
-      addNotification({
-        title: 'Feature Coming Soon',
-        message: 'Comment system will be implemented with database integration',
-        type: 'info'
-      });
-      addToast({
-        title: 'Feature Coming Soon',
-        message: 'Comment system will be implemented with database integration',
-        type: 'info'
-      });
-      setNewComment('');
+      const commentsData = await commentService.getByIssue(issueId);
+      setComments(commentsData);
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error('Error fetching comments:', error);
       addNotification({
         title: 'Error',
-        message: 'Failed to add comment',
+        message: 'Failed to load comments',
         type: 'error'
       });
     }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedIssue || !newComment.trim() || !user) {
+      console.log('Validation failed:', { selectedIssue: !!selectedIssue, comment: newComment.trim(), user: !!user });
+      if (!user) {
+        addNotification({
+          title: 'Error',
+          message: 'User not authenticated',
+          type: 'error'
+        });
+      }
+      return;
+    }
+    
+    try {
+      console.log('Creating comment with data:', {
+        issue_id: selectedIssue.id,
+        user_id: user.id,
+        content: newComment.trim()
+      });
+      
+      const newCommentData = await commentService.create({
+        issue_id: selectedIssue.id,
+        user_id: user.id,
+        content: newComment.trim()
+      });
+      
+      // Add the new comment to the local state
+      setComments([...comments, newCommentData]);
+      setNewComment('');
+      
+      addNotification({
+        title: 'Comment Added',
+        message: `Comment added to issue "${selectedIssue.title}"`,
+        type: 'success'
+      });
+      addToast({
+        title: 'Comment Added',
+        message: `Comment added to issue "${selectedIssue.title}"`,
+        type: 'success'
+      });
+    } catch (error: any) {
+      console.error('Error adding comment:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      let errorMessage = 'Failed to add comment';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.details) {
+        errorMessage = error.details;
+      }
+      
+      addNotification({
+        title: 'Error',
+        message: errorMessage,
+        type: 'error'
+      });
+    }
+  };
+
+  const handleEditComment = async (commentId: string) => {
+    if (!editCommentContent.trim()) return;
+    
+    try {
+      const updatedComment = await commentService.update(commentId, {
+        content: editCommentContent.trim()
+      });
+      
+      // Update the comment in the local state
+      setComments(comments.map(comment => 
+        comment.id === commentId ? updatedComment : comment
+      ));
+      
+      setEditingComment(null);
+      setEditCommentContent('');
+      
+      addNotification({
+        title: 'Comment Updated',
+        message: 'Comment updated successfully',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update comment',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await commentService.delete(commentId);
+      
+      // Remove the comment from the local state
+      setComments(comments.filter(comment => comment.id !== commentId));
+      
+      addNotification({
+        title: 'Comment Deleted',
+        message: 'Comment deleted successfully',
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      addNotification({
+        title: 'Error',
+        message: 'Failed to delete comment',
+        type: 'error'
+      });
+    }
+  };
+
+  const startEditComment = (comment: IssueComment) => {
+    setEditingComment(comment);
+    setEditCommentContent(comment.content);
+  };
+
+  const cancelEditComment = () => {
+    setEditingComment(null);
+    setEditCommentContent('');
   };
 
   const handleUpdateStatus = async () => {
@@ -238,6 +375,11 @@ const IssueManagement: React.FC = () => {
   const getAssignedToName = (assignedToId: string | null) => {
     if (!assignedToId) return 'Unassigned';
     const user = users.find(u => u.id === assignedToId);
+    return user?.name || 'Unknown User';
+  };
+
+  const getCommentAuthorName = (userId: string) => {
+    const user = users.find(u => u.id === userId);
     return user?.name || 'Unknown User';
   };
 
@@ -492,17 +634,98 @@ const IssueManagement: React.FC = () => {
             </div>
           </div>
           
-          {/* Comments section - placeholder for future implementation */}
+          {/* Comments section - real implementation */}
           <div className="mt-6">
-            <h4 className="mb-4 text-md font-medium text-gray-700">Comments (Coming Soon)</h4>
-            <div className="p-4 mb-4 space-y-4 bg-gray-50 rounded-lg">
-              <p className="text-gray-600 text-sm">Comment system will be implemented with database integration.</p>
+            <h4 className="mb-4 text-md font-medium text-gray-700">Comments ({comments.length})</h4>
+            <div className="p-4 mb-4 space-y-4 bg-gray-50 rounded-lg max-h-[300px] overflow-y-auto">
+              {comments.length > 0 ? (
+                comments.map(comment => (
+                  <div key={comment.id} className="p-3 bg-white rounded-lg">
+                    {editingComment?.id === comment.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                          rows={3}
+                          value={editCommentContent}
+                          onChange={(e) => setEditCommentContent(e.target.value)}
+                        />
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEditComment(comment.id)}
+                            className="px-3 py-1 text-xs font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditComment}
+                            className="px-3 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <div className="p-1 mr-2 text-gray-400 bg-gray-100 rounded-full">
+                              <UserIcon className="w-4 h-4" />
+                            </div>
+                            <span className="font-medium text-gray-700">
+                              {getCommentAuthorName(comment.user_id)}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500">
+                              {formatDate(comment.created_at)}
+                            </span>
+                            <button
+                              onClick={() => startEditComment(comment)}
+                              className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                              title="Edit Comment"
+                            >
+                              <EditIcon className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="p-1 text-gray-400 hover:text-red-600 rounded"
+                              title="Delete Comment"
+                            >
+                              <TrashIcon className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-gray-600">
+                          {comment.content}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-4">No comments yet. Be the first to add one!</p>
+              )}
             </div>
             <div className="mt-4">
               <label className="block mb-2 text-sm font-medium text-gray-700">Add Comment</label>
               <div className="flex space-x-2">
-                <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Comment system coming soon..." value={newComment} onChange={e => setNewComment(e.target.value)} disabled />
-                <button onClick={handleAddComment} className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark" disabled>
+                <input
+                  type="text"
+                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  placeholder="Type your comment..."
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && newComment.trim()) {
+                      handleAddComment();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleAddComment}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                  disabled={!newComment.trim()}
+                >
                   <MessageSquareIcon className="w-4 h-4 mr-2" />
                   Comment
                 </button>
