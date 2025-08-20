@@ -59,32 +59,18 @@ export const departmentService = {
 // Add notification service
 export const notificationService = {
   async getForUser(userId: string, limit = 100): Promise<NotificationRecord[]> {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-    if (error) throw error
-    return data || []
+    const { data, error } = await supabase.rpc('get_notifications_for_user', { target_user: userId });
+    if (error) throw error;
+    return (data || []).slice(0, limit);
   },
   async markAsRead(id: string): Promise<NotificationRecord> {
-    const { data, error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', id)
-      .select()
-      .single()
-    if (error) throw error
-    return data
+    const { data, error } = await supabase.rpc('mark_notification_read', { target_id: id });
+    if (error) throw error;
+    return data as NotificationRecord;
   },
   async markAllAsRead(userId: string): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('user_id', userId)
-      .eq('read', false)
-    if (error) throw error
+    const { error } = await supabase.rpc('mark_all_notifications_read', { target_user: userId });
+    if (error) throw error;
   },
   async create(rec: Omit<NotificationRecord, 'id' | 'created_at'>): Promise<NotificationRecord> {
     const { data, error } = await supabase

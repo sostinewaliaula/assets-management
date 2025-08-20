@@ -112,3 +112,49 @@ $$;
 
 revoke all on function public.create_notification(uuid, text, text, text) from public;
 grant execute on function public.create_notification(uuid, text, text, text) to anon, authenticated;
+
+-- RPC to fetch notifications for a specific user (bypasses RLS)
+create or replace function public.get_notifications_for_user(target_user uuid)
+returns setof public.notifications
+language sql
+security definer
+stable
+as $$
+  select * from public.notifications
+  where user_id = target_user
+  order by created_at desc
+$$;
+
+grant execute on function public.get_notifications_for_user(uuid) to anon, authenticated;
+
+-- RPC to mark single notification as read
+create or replace function public.mark_notification_read(target_id uuid)
+returns public.notifications
+language plpgsql
+security definer
+as $$
+declare
+  rec public.notifications;
+begin
+  update public.notifications
+     set read = true
+   where id = target_id
+   returning * into rec;
+  return rec;
+end;
+$$;
+
+grant execute on function public.mark_notification_read(uuid) to anon, authenticated;
+
+-- RPC to mark all notifications as read for a user
+create or replace function public.mark_all_notifications_read(target_user uuid)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  update public.notifications set read = true where user_id = target_user and read = false;
+end;
+$$;
+
+grant execute on function public.mark_all_notifications_read(uuid) to anon, authenticated;
