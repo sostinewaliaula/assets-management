@@ -175,12 +175,14 @@ const IssueManagement: React.FC = () => {
       console.log('Creating comment with data:', {
         issue_id: selectedIssue.id,
         user_id: user.id,
+        user_name: user.name,
         content: newComment.trim()
       });
       
       const newCommentData = await commentService.create({
         issue_id: selectedIssue.id,
         user_id: user.id,
+        user_name: user.name,
         content: newComment.trim()
       });
       
@@ -226,9 +228,13 @@ const IssueManagement: React.FC = () => {
     if (!editCommentContent.trim()) return;
     
     try {
+      console.log('Editing comment:', commentId, 'with content:', editCommentContent.trim());
+      
       const updatedComment = await commentService.update(commentId, {
         content: editCommentContent.trim()
       });
+      
+      console.log('Comment updated successfully:', updatedComment);
       
       // Update the comment in the local state
       setComments(comments.map(comment => 
@@ -255,7 +261,11 @@ const IssueManagement: React.FC = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
+      console.log('Deleting comment:', commentId);
+      
       await commentService.delete(commentId);
+      
+      console.log('Comment deleted successfully');
       
       // Remove the comment from the local state
       setComments(comments.filter(comment => comment.id !== commentId));
@@ -672,7 +682,7 @@ const IssueManagement: React.FC = () => {
                               <UserIcon className="w-4 h-4" />
                             </div>
                             <span className="font-medium text-gray-700">
-                              {getCommentAuthorName(comment.user_id)}
+                              {comment.user_name}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">

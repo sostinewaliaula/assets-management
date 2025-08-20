@@ -318,6 +318,8 @@ export const commentService = {
   },
 
   async update(id: string, updates: Partial<IssueComment>): Promise<IssueComment> {
+    console.log('Updating comment:', id, 'with updates:', updates);
+    
     const { data, error } = await supabase
       .from('issue_comments')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -325,17 +327,29 @@ export const commentService = {
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error updating comment:', error);
+      throw error;
+    }
+    
+    console.log('Comment updated successfully in service:', data);
     return data
   },
 
   async delete(id: string): Promise<void> {
+    console.log('Deleting comment:', id);
+    
     const { error } = await supabase
       .from('issue_comments')
       .delete()
       .eq('id', id)
     
-    if (error) throw error
+    if (error) {
+      console.error('Supabase error deleting comment:', error);
+      throw error;
+    }
+    
+    console.log('Comment deleted successfully in service');
   },
 
   // Test function to check table structure

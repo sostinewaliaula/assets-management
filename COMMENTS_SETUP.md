@@ -115,45 +115,62 @@ The `issue_comments` table has the following RLS policies (already configured):
 3. **Update Policy**: Users can only update their own comments
 4. **Delete Policy**: Users can delete their own comments, admins can delete any
 
-## Troubleshooting
+## Testing Edit/Delete Functionality
 
-### Common Issues
+After confirming comments are displaying correctly, test the edit and delete functionality:
 
-1. **Comments not loading**: Check if the `issue_comments` table exists and RLS policies are correct
-2. **Permission denied**: Verify user authentication and access to the issue
-3. **Foreign key errors**: Ensure the `issue_id` and `user_id` exist in their respective tables
+1. **Edit a comment:**
+   - Click the edit icon (pencil) on any comment
+   - Modify the text in the textarea
+   - Click "Save" to update
+   - Check console for debugging output
 
-### Debug Steps
+2. **Delete a comment:**
+   - Click the delete icon (trash) on any comment
+   - Check console for debugging output
+   - Comment should disappear from the list
 
-1. Check Supabase logs for SQL errors
-2. Verify RLS policies are working correctly
-3. Test with admin user to bypass restrictions
-4. Check browser console for JavaScript errors
+## Troubleshooting Common Issues
 
-### If You Need to Reset RLS Policies
+### Issue: Comments display but edit/delete don't work
 
-If you encounter issues with the existing RLS policies, you can use the simplified approach from your SQL:
+**Possible causes:**
+1. **RLS Policy Issues:** The current user might not have permission to update/delete comments
+2. **Missing user_name field:** If the table requires user_name but it's not being provided
+3. **Authentication issues:** User context might not be properly loaded
+
+**Debugging steps:**
+1. Check browser console for error messages
+2. Verify the user object is loaded correctly
+3. Check if RLS policies allow the current user to perform operations
+
+**Quick RLS test:**
+```sql
+-- Test if current user can update/delete comments
+SELECT * FROM issue_comments WHERE user_id = auth.uid() LIMIT 1;
+UPDATE issue_comments SET content = 'test' WHERE user_id = auth.uid() LIMIT 1;
+DELETE FROM issue_comments WHERE user_id = auth.uid() LIMIT 1;
+```
+
+### Issue: Permission denied errors
+
+If you get permission errors, try these simplified RLS policies:
 
 ```sql
--- Drop existing policies
+-- Simplified policies for testing (less secure)
 DROP POLICY IF EXISTS "Allow authenticated users to view comments" ON issue_comments;
 DROP POLICY IF EXISTS "Allow authenticated users to insert comments" ON issue_comments;
 DROP POLICY IF EXISTS "Allow users to update own comments or admins to update any" ON issue_comments;
 DROP POLICY IF EXISTS "Allow users to delete own comments or admins to delete any" ON issue_comments;
 
--- Create simple policies for testing
-CREATE POLICY "Simple view policy" ON issue_comments
-  FOR SELECT USING (true);
-
-CREATE POLICY "Simple insert policy" ON issue_comments
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Simple update policy" ON issue_comments
-  FOR UPDATE USING (true);
-
-CREATE POLICY "Simple delete policy" ON issue_comments
-  FOR DELETE USING (true);
+-- Create simple policies
+CREATE POLICY "Simple view policy" ON issue_comments FOR SELECT USING (true);
+CREATE POLICY "Simple insert policy" ON issue_comments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Simple update policy" ON issue_comments FOR UPDATE USING (true);
+CREATE POLICY "Simple delete policy" ON issue_comments FOR DELETE USING (true);
 ```
+
+**Note:** These simplified policies are less secure and should only be used for testing. Revert to the proper RLS policies for production use.
 
 ## Future Enhancements
 
