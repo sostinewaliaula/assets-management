@@ -400,7 +400,7 @@ const AssetManagement: React.FC = () => {
             {filteredAssets.map(asset => <tr key={asset.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
               <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                 <Link to={`/assets/${asset.id}`} className="flex items-center">
-                  <img src="https://via.placeholder.com/50" alt={asset.name} className="w-10 h-10 mr-3 rounded-xl" />
+                  <img src={"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"} alt={asset.name} className="w-10 h-10 mr-3 rounded-xl" />
                   <span>{asset.name}</span>
                 </Link>
               </td>

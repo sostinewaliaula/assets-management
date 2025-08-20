@@ -90,6 +90,18 @@ export const assetService = {
     return data || []
   },
 
+  async getByAssignedUser(userId: string, limit = 50): Promise<Asset[]> {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    
+    if (error) throw error
+    return data || []
+  },
+
   async create(asset: Omit<Asset, 'id' | 'created_at' | 'updated_at'>): Promise<Asset> {
     const { data, error } = await supabase
       .from('assets')
@@ -219,6 +231,18 @@ export const issueService = {
       .select('*')
       .eq('asset_id', assetId)
       .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    return data || []
+  },
+
+  async getByReporter(userId: string, limit = 50): Promise<Issue[]> {
+    const { data, error } = await supabase
+      .from('issues')
+      .select('*')
+      .eq('reported_by', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
     
     if (error) throw error
     return data || []

@@ -364,7 +364,7 @@ const AssetDetails: React.FC = () => {
     <div className="flex flex-col justify-between p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card md:flex-row md:items-center">
       <div className="flex items-center">
         <div className="relative">
-          <img src="https://via.placeholder.com/150" alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
+          <img src={"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='14' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"} alt={asset.name} className="object-cover w-24 h-24 rounded-2xl md:w-32 md:h-32" />
           <div className="absolute bottom-0 right-0">{getStatusBadge(asset.status)}</div>
         </div>
         <div className="ml-4">
