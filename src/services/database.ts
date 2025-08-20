@@ -496,3 +496,32 @@ export const assetMaintenanceService = {
     if (error) throw error
   }
 }
+
+export const assetRequestsService = {
+  async create(req: { user_id: string; title: string; description: string; type: string; priority: string; department_id: string | null; }): Promise<any> {
+    const { data, error } = await supabase
+      .from('asset_requests')
+      .insert([{
+        user_id: req.user_id,
+        title: req.title,
+        description: req.description,
+        type: req.type,
+        priority: req.priority,
+        department_id: req.department_id,
+        status: 'Pending'
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  async getByUser(userId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('asset_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  }
+}
