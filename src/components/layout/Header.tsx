@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -6,24 +6,32 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { MenuIcon, BellIcon, SunIcon, MoonIcon, UserIcon } from 'lucide-react';
 import NotificationDropdown from '../ui/NotificationDropdown';
 import DatabaseStatus from '../ui/DatabaseStatus';
+import { notificationService } from '../../services/database';
 interface HeaderProps {
   toggleSidebar: () => void;
 }
 const Header: React.FC<HeaderProps> = ({
   toggleSidebar
 }) => {
-  const {
-    user
-  } = useAuth();
-  const {
-    unreadCount
-  } = useNotifications();
-  const {
-    theme,
-    toggleTheme
-  } = useTheme();
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const loadUnread = async () => {
+      if (!user?.id) { setUnreadCount(0); return; }
+      try {
+        const all = await notificationService.getForUser(user.id, 50);
+        setUnreadCount(all.filter(n => !n.read).length);
+      } catch (e) {
+        setUnreadCount(0);
+      }
+    };
+    loadUnread();
+  }, [user?.id, notificationsOpen]);
+
   return <header className="z-10 py-4 bg-white dark:bg-gray-900 shadow-sm">
     <div className="container flex items-center justify-between h-full px-6 mx-auto">
       {/* Logo */}
