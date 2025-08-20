@@ -301,25 +301,40 @@ const IssueManagement: React.FC = () => {
     
     try {
       setIsUpdatingStatus(true);
+      const previousStatus = selectedIssue.status;
       const updatePayload: Partial<Issue> = { status: newStatus };
       if ((newStatus === 'Resolved' || newStatus === 'Closed') && !selectedIssue.actual_resolution_date) {
-        // Stamp resolution time when moving to a terminal state
         (updatePayload as any).actual_resolution_date = new Date().toISOString();
       }
       if ((selectedIssue.status === 'Resolved' || selectedIssue.status === 'Closed') && (newStatus !== 'Resolved' && newStatus !== 'Closed')) {
-        // Optionally clear resolution date when moving away from terminal states
         (updatePayload as any).actual_resolution_date = null;
       }
 
       const updatedIssue = await issueService.update(selectedIssue.id, updatePayload);
       
-      // Update local state
+      // Update local state of issues
       const updatedIssues = issues.map(issue => 
         issue.id === selectedIssue.id ? updatedIssue : issue
       );
       setIssues(updatedIssues);
       setSelectedIssue(updatedIssue);
       setNewStatus(updatedIssue.status);
+      
+      // Create a system comment reflecting the status change (backend + UI)
+      if (user) {
+        const systemCommentContent = `Status updated from "${previousStatus}" to "${updatedIssue.status}"`;
+        try {
+          const createdSystemComment = await commentService.create({
+            issue_id: updatedIssue.id,
+            user_id: user.id,
+            user_name: user.name,
+            content: systemCommentContent
+          });
+          setComments(prev => [...prev, createdSystemComment]);
+        } catch (commentError) {
+          console.error('Failed to create system status comment:', commentError);
+        }
+      }
       
       addNotification({
         title: 'Status Updated',
