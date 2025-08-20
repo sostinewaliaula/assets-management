@@ -35,6 +35,7 @@ const IssueManagement: React.FC = () => {
   const [comments, setComments] = useState<IssueComment[]>([]);
   const [editingComment, setEditingComment] = useState<IssueComment | null>(null);
   const [editCommentContent, setEditCommentContent] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     // Fetch issues, assets, and users
@@ -299,7 +300,18 @@ const IssueManagement: React.FC = () => {
     if (!selectedIssue || !newStatus || newStatus === selectedIssue.status) return;
     
     try {
-      const updatedIssue = await issueService.update(selectedIssue.id, { status: newStatus });
+      setIsUpdatingStatus(true);
+      const updatePayload: Partial<Issue> = { status: newStatus };
+      if ((newStatus === 'Resolved' || newStatus === 'Closed') && !selectedIssue.actual_resolution_date) {
+        // Stamp resolution time when moving to a terminal state
+        (updatePayload as any).actual_resolution_date = new Date().toISOString();
+      }
+      if ((selectedIssue.status === 'Resolved' || selectedIssue.status === 'Closed') && (newStatus !== 'Resolved' && newStatus !== 'Closed')) {
+        // Optionally clear resolution date when moving away from terminal states
+        (updatePayload as any).actual_resolution_date = null;
+      }
+
+      const updatedIssue = await issueService.update(selectedIssue.id, updatePayload);
       
       // Update local state
       const updatedIssues = issues.map(issue => 
@@ -307,25 +319,27 @@ const IssueManagement: React.FC = () => {
       );
       setIssues(updatedIssues);
       setSelectedIssue(updatedIssue);
-      setNewStatus('');
+      setNewStatus(updatedIssue.status);
       
       addNotification({
         title: 'Status Updated',
-        message: `Status of issue "${selectedIssue.title}" updated to "${newStatus}"`,
+        message: `Status of issue "${updatedIssue.title}" updated to "${updatedIssue.status}"`,
         type: 'success'
       });
       addToast({
         title: 'Status Updated',
-        message: `Status of issue "${selectedIssue.title}" updated to "${newStatus}"`,
+        message: `Status of issue "${updatedIssue.title}" updated to "${updatedIssue.status}"`,
         type: 'success'
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating status:', error);
       addNotification({
         title: 'Error',
-        message: 'Failed to update issue status',
+        message: error?.message || 'Failed to update issue status',
         type: 'error'
       });
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -637,8 +651,8 @@ const IssueManagement: React.FC = () => {
                 <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
                   {issueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
                 </select>
-                <button onClick={handleUpdateStatus} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark" disabled={newStatus === selectedIssue.status}>
-                  Update
+                <button onClick={handleUpdateStatus} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed" disabled={isUpdatingStatus || newStatus === selectedIssue.status}>
+                  {isUpdatingStatus ? 'Updating...' : 'Update'}
                 </button>
               </div>
             </div>
