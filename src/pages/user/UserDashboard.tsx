@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { MonitorIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, InfoIcon, ArrowRightIcon, BellIcon } from 'lucide-react';
+import { MonitorIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, InfoIcon, ArrowRightIcon, BellIcon, XCircleIcon } from 'lucide-react';
 import { assetService, issueService } from '../../services/database';
 
 const UserDashboard: React.FC = () => {
@@ -12,6 +12,16 @@ const UserDashboard: React.FC = () => {
   const [assets, setAssets] = useState<any[]>([]);
   const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
+  const [reportIssue, setReportIssue] = useState({
+    title: '',
+    description: '',
+    priority: 'Medium',
+    category: 'Other',
+    asset_id: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +68,53 @@ const UserDashboard: React.FC = () => {
     fetchData();
   }, [user?.id]);
 
+  const handleReportIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id) return;
+    if (!reportIssue.title.trim() || !reportIssue.description.trim()) return;
+
+    setIsSubmittingIssue(true);
+    try {
+      const selectedAsset = assets.find(a => a.id === reportIssue.asset_id);
+      const newIssuePayload = {
+        title: reportIssue.title,
+        description: reportIssue.description,
+        status: 'Open',
+        priority: reportIssue.priority,
+        category: reportIssue.category,
+        reported_by: user.id,
+        assigned_to: null as string | null,
+        asset_id: reportIssue.asset_id || null,
+        department_id: selectedAsset?.department_id || null,
+        estimated_resolution_date: null as string | null,
+        actual_resolution_date: null as string | null
+      };
+
+      const created = await issueService.create(newIssuePayload as any);
+      setIssues(prev => [created, ...prev]);
+
+      addNotification({
+        title: 'Issue Created',
+        message: `New issue created${selectedAsset ? ` for ${selectedAsset.name}` : ''}.`,
+        type: 'success'
+      });
+      addToast({
+        title: 'Issue Created',
+        message: 'Your issue has been submitted successfully.',
+        type: 'success'
+      });
+
+      setReportIssue({ title: '', description: '', priority: 'Medium', category: 'Other', asset_id: '' });
+      setShowReportIssueModal(false);
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      addNotification({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
+      addToast({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
+    } finally {
+      setIsSubmittingIssue(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Available':
@@ -101,14 +158,14 @@ const UserDashboard: React.FC = () => {
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <h2 className="mb-4 text-xl font-bold text-primary">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Link to="/my-assets" className="button-primary flex items-center justify-center">
+          <Link to="/user/assets" className="button-primary flex items-center justify-center">
             <MonitorIcon className="w-6 h-6 mr-3 text-white" />
             <span className="font-medium text-white">View All Assets</span>
           </Link>
-          <Link to="/my-issues" className="button-primary flex items-center justify-center">
+          <button onClick={() => setShowReportIssueModal(true)} className="button-primary flex items-center justify-center">
             <AlertCircleIcon className="w-6 h-6 mr-3 text-white" />
             <span className="font-medium text-white">Report an Issue</span>
-          </Link>
+          </button>
           <Link to="/notifications" className="button-primary flex items-center justify-center">
             <BellIcon className="w-6 h-6 mr-3 text-white" />
             <span className="font-medium text-white">Notifications</span>
@@ -151,7 +208,7 @@ const UserDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+        <div className="p-6 bg-white dark:bg-gray-900 rounded-2l shadow-card">
           <div className="flex items-center">
             <div className="p-3 mr-4 bg-lightgreen rounded-full">
               <CheckCircleIcon className="w-6 h-6 text-primary" />
@@ -168,7 +225,7 @@ const UserDashboard: React.FC = () => {
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-primary">Your Assets</h2>
-          <Link to="/my-assets" className="button-primary flex items-center text-sm font-medium">
+          <Link to="/user/assets" className="button-primary flex items-center text-sm font-medium">
             View All <ArrowRightIcon className="w-4 h-4 ml-1" />
           </Link>
         </div>
@@ -252,6 +309,75 @@ const UserDashboard: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Report Issue Modal */}
+      {showReportIssueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircleIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-primary dark:text-white">Report an Issue</h3>
+              </div>
+              <button onClick={() => setShowReportIssueModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleReportIssueSubmit} className="overflow-y-auto max-h-[60vh] p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Title *</label>
+                  <input type="text" className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.title} onChange={e => setReportIssue({ ...reportIssue, title: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.priority} onChange={e => setReportIssue({ ...reportIssue, priority: e.target.value })}>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Category</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.category} onChange={e => setReportIssue({ ...reportIssue, category: e.target.value })}>
+                    <option value="Hardware Failure">Hardware Failure</option>
+                    <option value="Software Issue">Software Issue</option>
+                    <option value="Connectivity Problem">Connectivity Problem</option>
+                    <option value="Upgrade Request">Upgrade Request</option>
+                    <option value="Replacement Request">Replacement Request</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Asset (optional)</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.asset_id} onChange={e => setReportIssue({ ...reportIssue, asset_id: e.target.value })}>
+                    <option value="">No Specific Asset</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description *</label>
+                <textarea className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" rows={5} value={reportIssue.description} onChange={e => setReportIssue({ ...reportIssue, description: e.target.value })} required />
+              </div>
+              <div className="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-800 pt-4">
+                <button type="button" onClick={() => setShowReportIssueModal(false)} className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmittingIssue} className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSubmittingIssue ? 'Submitting...' : 'Submit Issue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
