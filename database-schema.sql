@@ -93,3 +93,22 @@ CREATE TRIGGER update_issue_comments_updated_at
   BEFORE UPDATE ON issue_comments
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Create notification helper function (RPC)
+create or replace function public.create_notification(
+  target_user uuid,
+  title_param text,
+  message_param text,
+  type_param text
+) returns void
+language plpgsql
+security definer
+as $$
+begin
+  insert into public.notifications (user_id, title, message, type, read)
+  values (target_user, title_param, message_param, type_param, false);
+end;
+$$;
+
+revoke all on function public.create_notification(uuid, text, text, text) from public;
+grant execute on function public.create_notification(uuid, text, text, text) to anon, authenticated;

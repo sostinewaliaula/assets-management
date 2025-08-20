@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, DownloadIcon, UploadIcon, RefreshCwIcon, AlertCircleIcon } from 'lucide-react';
-import { assetService, departmentService, userService } from '../../services/database';
+import { assetService, departmentService, userService, notificationService } from '../../services/database';
 import { Asset, Department, User } from '../../lib/supabase';
 
 // Static data for dropdowns (these could also come from the database)
@@ -138,6 +138,20 @@ const AssetManagement: React.FC = () => {
     // Add the new asset to the list
       setAssets([newAssetData, ...assets]);
       
+      // Notify assigned user if asset is assigned at creation
+      try {
+        if (newAssetData.assigned_to) {
+          await notificationService.notifyUser(
+            newAssetData.assigned_to,
+            'Asset Assigned',
+            `You have been assigned the asset "${newAssetData.name}" (SN: ${newAssetData.serial_number || 'N/A'}).`,
+            'info'
+          );
+        }
+      } catch (e) {
+        console.warn('Failed to notify assigned user for new asset', e);
+      }
+
     // Close the modal and reset the form
     setShowAddAssetModal(false);
     setNewAsset({
@@ -191,6 +205,9 @@ const AssetManagement: React.FC = () => {
     if (!editingAsset) return;
     
     try {
+      // Capture previous assignment
+      const previous = assets.find(a => a.id === editingAsset.id);
+      const previousAssignedTo = previous?.assigned_to || null;
       // Update the asset in the database
       const updatedAsset = await assetService.update(editingAsset.id, editingAsset);
       
@@ -200,6 +217,20 @@ const AssetManagement: React.FC = () => {
       );
       setAssets(updatedAssets);
       
+      // If assignment changed and now assigned, notify the new user
+      try {
+        if (updatedAsset.assigned_to && updatedAsset.assigned_to !== previousAssignedTo) {
+          await notificationService.notifyUser(
+            updatedAsset.assigned_to,
+            'Asset Assigned',
+            `You have been assigned the asset "${updatedAsset.name}" (SN: ${updatedAsset.serial_number || 'N/A'}).`,
+            'info'
+          );
+        }
+      } catch (e) {
+        console.warn('Failed to notify user about asset assignment change', e);
+      }
+
       // Close the modal and reset the editing state
       setShowEditAssetModal(false);
       setEditingAsset(null);

@@ -1,4 +1,4 @@
-import { supabase, Department, Asset, User, Issue, IssueComment, AssetMaintenance } from '../lib/supabase'
+import { supabase, Department, Asset, User, Issue, IssueComment, AssetMaintenance, NotificationRecord } from '../lib/supabase'
 
 // Department operations
 export const departmentService = {
@@ -52,6 +52,56 @@ export const departmentService = {
       .delete()
       .eq('id', id)
     
+    if (error) throw error
+  }
+}
+
+// Add notification service
+export const notificationService = {
+  async getForUser(userId: string, limit = 100): Promise<NotificationRecord[]> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+    return data || []
+  },
+  async markAsRead(id: string): Promise<NotificationRecord> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+  async markAllAsRead(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+    if (error) throw error
+  },
+  async create(rec: Omit<NotificationRecord, 'id' | 'created_at'>): Promise<NotificationRecord> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([rec])
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+  async notifyUser(userId: string, title: string, message: string, type: NotificationRecord['type']): Promise<void> {
+    const { error } = await supabase.rpc('create_notification', {
+      target_user: userId,
+      title_param: title,
+      message_param: message,
+      type_param: type
+    })
     if (error) throw error
   }
 }
@@ -165,6 +215,16 @@ export const userService = {
       .eq('department_id', departmentId)
       .order('created_at', { ascending: false })
     
+    if (error) throw error
+    return data || []
+  },
+
+  async getByRoles(roles: string[]): Promise<User[]> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .in('role', roles)
+      .order('created_at', { ascending: false })
     if (error) throw error
     return data || []
   },

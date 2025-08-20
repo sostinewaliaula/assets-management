@@ -161,3 +161,13 @@ export interface AssetMaintenance {
   next_maintenance_date: string | null
   created_at: string
 }
+
+export interface NotificationRecord {
+  id: string
+  user_id: string
+  title: string
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+  read: boolean
+  created_at: string
+}

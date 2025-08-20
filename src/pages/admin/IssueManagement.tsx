@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon, TrashIcon, EditIcon } from 'lucide-react';
-import { issueService, assetService, userService, commentService } from '../../services/database';
+import { issueService, assetService, userService, commentService, notificationService } from '../../services/database';
 import { Issue, Asset, User, IssueComment } from '../../lib/supabase';
 
 // Static data for dropdowns
@@ -190,6 +190,31 @@ const IssueManagement: React.FC = () => {
       // Add the new comment to the local state
       setComments([...comments, newCommentData]);
       setNewComment('');
+
+      // Backend notifications to issue owner and (optionally) asset owner
+      try {
+        if (selectedIssue.reported_by) {
+          await notificationService.notifyUser(
+            selectedIssue.reported_by,
+            'New Comment on Your Issue',
+            `${user.name} commented on your issue "${selectedIssue.title}"`,
+            'info'
+          );
+        }
+        if (selectedIssue.asset_id) {
+          const asset = assets.find(a => a.id === selectedIssue.asset_id);
+          if (asset?.assigned_to && asset.assigned_to !== selectedIssue.reported_by) {
+            await notificationService.notifyUser(
+              asset.assigned_to,
+              'Comment on Asset Issue',
+              `${user.name} commented on issue "${selectedIssue.title}" for your assigned asset`,
+              'info'
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to send comment notifications', e);
+      }
       
       addNotification({
         title: 'Comment Added',
@@ -334,6 +359,31 @@ const IssueManagement: React.FC = () => {
         } catch (commentError) {
           console.error('Failed to create system status comment:', commentError);
         }
+      }
+
+      // Send notification to the issue owner (and asset owner if different)
+      try {
+        if (updatedIssue.reported_by) {
+          await notificationService.notifyUser(
+            updatedIssue.reported_by,
+            'Issue Status Updated',
+            `Your issue "${updatedIssue.title}" status changed from ${previousStatus} to ${updatedIssue.status}.`,
+            'warning'
+          );
+        }
+        if (updatedIssue.asset_id) {
+          const asset = assets.find(a => a.id === updatedIssue.asset_id);
+          if (asset?.assigned_to && asset.assigned_to !== updatedIssue.reported_by) {
+            await notificationService.notifyUser(
+              asset.assigned_to,
+              'Issue Status Updated',
+              `Issue "${updatedIssue.title}" for your assigned asset changed from ${previousStatus} to ${updatedIssue.status}.`,
+              'warning'
+            );
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to send status update notifications', e);
       }
       
       addNotification({

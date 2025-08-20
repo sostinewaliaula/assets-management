@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { HomeIcon, MonitorIcon, TicketIcon, UsersIcon, BuildingIcon, SettingsIcon, LogOutIcon } from 'lucide-react';
+import { HomeIcon, MonitorIcon, TicketIcon, UsersIcon, BuildingIcon, SettingsIcon, LogOutIcon, BellIcon } from 'lucide-react';
 interface SidebarProps {
   closeSidebar: () => void;
 }
@@ -28,6 +28,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     name: 'My Issues',
     path: '/user/issues',
     icon: <TicketIcon size={20} />
+  }, {
+    name: 'Notifications',
+    path: '/notifications',
+    icon: <BellIcon size={20} />
   }];
   const adminNavItems = [{
     name: 'Admin Dashboard',
@@ -49,6 +53,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     name: 'Departments',
     path: '/admin/departments',
     icon: <BuildingIcon size={20} />
+  }, {
+    name: 'Notifications',
+    path: '/notifications',
+    icon: <BellIcon size={20} />
   }, {
     name: 'Settings',
     path: '/settings',

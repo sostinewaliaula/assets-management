@@ -108,8 +108,8 @@ function App() {
 
   return (
     <ThemeProvider>
-      <NotificationProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <NotificationProvider>
           <ConnectionStatus />
           <Router>
             <Routes>
@@ -136,15 +136,15 @@ function App() {
                 <Route path="assets/:assetId" element={<AssetDetails />} />
                 <Route path="shared">
                   <Route path="asset/:id" element={<AssetDetails />} />
-                <Route path="notifications" element={<NotificationsPage />} />
                 </Route>
+                <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>
           </Router>
           <ToastContainerWrapper />
-        </AuthProvider>
-      </NotificationProvider>
+        </NotificationProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
