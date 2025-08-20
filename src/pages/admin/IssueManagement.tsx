@@ -589,7 +589,15 @@ const IssueManagement: React.FC = () => {
               <td className="px-6 py-4">{formatDate(issue.created_at)}</td>
               <td className="px-6 py-4">{formatDate(issue.updated_at)}</td>
               <td className="px-6 py-4">
-                <button onClick={() => { setSelectedIssue(issue); setNewStatus(issue.status); setShowIssueDetailModal(true); }} className="button-primary px-3 py-1 text-xs font-medium">Manage</button>
+                <button onClick={() => { 
+                  // Ensure comments are scoped to the selected issue
+                  setComments([]);
+                  setEditingComment(null);
+                  setEditCommentContent('');
+                  setSelectedIssue(issue); 
+                  setNewStatus(issue.status); 
+                  setShowIssueDetailModal(true); 
+                }} className="button-primary px-3 py-1 text-xs font-medium">Manage</button>
               </td>
             </tr>)}
           </tbody>
@@ -616,6 +624,9 @@ const IssueManagement: React.FC = () => {
           <button onClick={() => {
             setShowIssueDetailModal(false);
             setSelectedIssue(null);
+            setComments([]);
+            setEditingComment(null);
+            setEditCommentContent('');
           }} className="text-gray-500 hover:text-gray-700">
             <XCircleIcon className="w-6 h-6" />
           </button>
@@ -776,6 +787,9 @@ const IssueManagement: React.FC = () => {
           <button onClick={() => {
             setShowIssueDetailModal(false);
             setSelectedIssue(null);
+            setComments([]);
+            setEditingComment(null);
+            setEditCommentContent('');
           }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Close</button>
         </div>
       </div>
