@@ -193,11 +193,12 @@ const IssueManagement: React.FC = () => {
 
       // Backend notifications to issue owner and (optionally) asset owner
       try {
+        const commentText = newComment.trim();
         if (selectedIssue.reported_by) {
           await notificationService.notifyUser(
             selectedIssue.reported_by,
             'New Comment on Your Issue',
-            `${user.name} commented on your issue "${selectedIssue.title}"`,
+            `${user.name} commented on your issue "${selectedIssue.title}": "${commentText}"`,
             'info'
           );
         }
@@ -207,7 +208,7 @@ const IssueManagement: React.FC = () => {
             await notificationService.notifyUser(
               asset.assigned_to,
               'Comment on Asset Issue',
-              `${user.name} commented on issue "${selectedIssue.title}" for your assigned asset`,
+              `${user.name} commented on issue "${selectedIssue.title}" for your assigned asset: "${commentText}"`,
               'info'
             );
           }
