@@ -5,11 +5,11 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Asset, supabase } from '../../lib/supabase';
-import { issueService } from '../../services/database';
+import { issueService, assetRequestsService, userService, notificationService } from '../../services/database';
 
 const UserAssets: React.FC = () => {
   const { user } = useAuth();
-  const { addNotification } = useNotifications();
+  const { addNotification, addToast } = useNotifications();
   const { isConnected, isConnecting, lastError, query } = useSupabase();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
@@ -186,26 +186,73 @@ const UserAssets: React.FC = () => {
   // Handle asset request form submission
   const handleAssetRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!user) return;
-    
+    if (!newAssetRequest.type || !newAssetRequest.urgency || !newAssetRequest.reason) {
+      console.error('Missing required fields:', newAssetRequest);
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields.',
+        type: 'error'
+      });
+      addToast({
+        title: 'Error',
+        message: 'Please fill in all required fields.',
+        type: 'error'
+      });
+      return;
+    }
     setIsSubmittingRequest(true);
-    
     try {
-      // Submit to Supabase (you can create an asset_requests table if needed)
-      // For now, we'll just show a success message
+      console.log('User ID:', user.id);
+      console.log('Insert payload:', {
+        user_id: user.id,
+        title: `Request for ${newAssetRequest.type}`,
+        description: newAssetRequest.reason,
+        type: newAssetRequest.type,
+        priority: newAssetRequest.urgency,
+        department_id: null
+      });
+      await assetRequestsService.create({
+        user_id: user.id,
+        title: `Request for ${newAssetRequest.type}`,
+        description: newAssetRequest.reason,
+        type: newAssetRequest.type,
+        priority: newAssetRequest.urgency,
+        department_id: null
+      });
+
+      // Notify admins/managers
+      try {
+        const recipients = await userService.getByRoles(['admin', 'department_officer']);
+        await Promise.all(
+          recipients.map(u => notificationService.notifyUser(
+            u.id,
+            'New Asset Request',
+            `${user.name} requested a new asset: "${newAssetRequest.type}".`,
+            'warning'
+          ))
+        );
+        await notificationService.notifyUser(
+          user.id,
+          'Asset Request Submitted',
+          `Your asset request for "${newAssetRequest.type}" has been submitted for review.`,
+          'info'
+        );
+      } catch (e) {
+        console.warn('Failed to send asset request notifications', e);
+      }
+
       addNotification({
         title: 'Request Submitted',
         message: 'Your request for a new asset has been submitted successfully',
         type: 'success'
       });
-      // addToast({ // This line was removed as per the new_code, as per the new_code.
-      //   title: 'Request Submitted',
-      //   message: 'Your request for a new asset has been submitted successfully',
-      //   type: 'success'
-      // });
-      
-      // Reset form and close modal
+      addToast({
+        title: 'Request Submitted',
+        message: 'Your request for a new asset has been submitted successfully',
+        type: 'success'
+      });
+
       setNewAssetRequest({
         type: '',
         reason: '',
@@ -219,11 +266,11 @@ const UserAssets: React.FC = () => {
         message: 'Failed to submit asset request. Please try again.',
         type: 'error'
       });
-      // addToast({ // This line was removed as per the new_code, as per the new_code.
-      //   title: 'Error',
-      //   message: 'Failed to submit asset request. Please try again.',
-      //   type: 'error'
-      // });
+      addToast({
+        title: 'Error',
+        message: 'Failed to submit asset request. Please try again.',
+        type: 'error'
+      });
     } finally {
       setIsSubmittingRequest(false);
     }

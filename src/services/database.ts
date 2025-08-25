@@ -499,19 +499,15 @@ export const assetMaintenanceService = {
 
 export const assetRequestsService = {
   async create(req: { user_id: string; title: string; description: string; type: string; priority: string; department_id: string | null; }): Promise<any> {
-    const { data, error } = await supabase
-      .from('asset_requests')
-      .insert([{
-        user_id: req.user_id,
-        title: req.title,
-        description: req.description,
-        type: req.type,
-        priority: req.priority,
-        department_id: req.department_id,
-        status: 'Pending'
-      }])
-      .select()
-      .single();
+    // Use SECURITY DEFINER RPC to bypass RLS safely
+    const { data, error } = await supabase.rpc('create_asset_request', {
+      p_user_id: req.user_id,
+      p_title: req.title,
+      p_description: req.description,
+      p_type: req.type,
+      p_priority: req.priority,
+      p_department_id: req.department_id
+    });
     if (error) throw error;
     return data;
   },

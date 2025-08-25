@@ -256,63 +256,12 @@ const UserDashboard: React.FC = () => {
           </Link>
         </div>
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button onClick={() => setShowRequestAssetModal(true)} className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">Request New Asset</button>
+          {/* Removed Request New Asset button */}
         </div>
       </div>
 
       {/* Request Asset Modal */}
-      {showRequestAssetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
-              <h3 className="text-xl font-bold text-primary dark:text-white">Request New Asset</h3>
-              <button onClick={() => setShowRequestAssetModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleRequestAssetSubmit} className="overflow-y-auto max-h-[60vh] p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Title *</label>
-                  <input type="text" className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={assetRequest.title} onChange={e => setAssetRequest({ ...assetRequest, title: e.target.value })} required />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={assetRequest.type} onChange={e => setAssetRequest({ ...assetRequest, type: e.target.value })}>
-                    <option value="Laptop">Laptop</option>
-                    <option value="Desktop">Desktop</option>
-                    <option value="Monitor">Monitor</option>
-                    <option value="Phone">Phone</option>
-                    <option value="Tablet">Tablet</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
-                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={assetRequest.priority} onChange={e => setAssetRequest({ ...assetRequest, priority: e.target.value })}>
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description *</label>
-                <textarea className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" rows={5} value={assetRequest.description} onChange={e => setAssetRequest({ ...assetRequest, description: e.target.value })} required />
-              </div>
-              <div className="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-800 pt-4">
-                <button type="button" onClick={() => setShowRequestAssetModal(false)} className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Cancel</button>
-                <button type="submit" disabled={isSubmittingRequest} className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isSubmittingRequest ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Removed Request Asset Modal */}
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
