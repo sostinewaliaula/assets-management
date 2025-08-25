@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!serviceRoleKey) {
+      return new Response(JSON.stringify({ error: 'Missing SERVICE_ROLE_KEY' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
+    }
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
     // Create user with password (email confirmed)

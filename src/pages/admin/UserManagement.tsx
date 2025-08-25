@@ -149,11 +149,11 @@ const UserManagement: React.FC = () => {
     
     try {
       await userService.update(editingUser.id, {
-        email: newUser.email,
-        name: newUser.name,
+          email: newUser.email,
+          name: newUser.name,
         role: newUser.role as any,
         department_id: newUser.department_id || null,
-        position: newUser.position,
+          position: newUser.position,
         phone: newUser.phone
       } as any);
       
@@ -193,38 +193,24 @@ const UserManagement: React.FC = () => {
   };
   const handleDeleteUser = async () => {
     if (!editingUser) return;
-    
     try {
-      // Delete user profile from the users table
-      const { error: profileError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', editingUser.id);
-      
-      if (profileError) {
-        throw profileError;
-      }
-      
-      // Refresh the users list
+      const { error } = await supabase.functions.invoke('admin_delete_user', {
+        body: { user_id: editingUser.id }
+      });
+      if (error) throw error;
+
       const fetchedUsers = await userService.getAll();
       setUsers(fetchedUsers);
-      
-      // Show notification and close modal
-      addNotification({
-        title: 'User Deleted',
-        message: `User "${editingUser.name}" has been deleted successfully`,
-        type: 'info'
-      });
-      
+
+      addNotification({ title: 'User Deleted', message: `User "${editingUser.name}" has been deleted successfully`, type: 'info' });
+      addToast({ title: 'Deleted', message: 'User removed.', type: 'info' });
+
       setShowDeleteModal(false);
       setEditingUser(null);
     } catch (error: any) {
       console.error('Error deleting user:', error);
-      addNotification({
-        title: 'Error',
-        message: error.message || 'Failed to delete user. Please try again.',
-        type: 'error'
-      });
+      addNotification({ title: 'Error', message: error.message || 'Failed to delete user. Please try again.', type: 'error' });
+      addToast({ title: 'Error', message: 'Failed to delete user.', type: 'error' });
     }
   };
 
@@ -249,33 +235,24 @@ const UserManagement: React.FC = () => {
     }
     
     try {
-      // Update password using Supabase Auth Admin API
-      const { error } = await supabase.auth.admin.updateUserById(
-        editingUser.id,
-        { password: newPassword }
-      );
-      
-      if (error) {
-        throw error;
-      }
-      
-      addNotification({
-        title: 'Password Updated',
-        message: `Password for "${editingUser.name}" has been updated successfully`,
-        type: 'success'
+      console.debug('Updating password for user:', editingUser.id, 'len:', newPassword.length);
+      const { error } = await supabase.functions.invoke('admin_update_password', {
+        body: { user_id: editingUser.id, password: newPassword }
       });
-      
+      if (error) throw error;
+
+      addNotification({ title: 'Password Updated', message: `Password for "${editingUser.name}" has been updated successfully`, type: 'success' });
+      addToast({ title: 'Success', message: 'Password updated.', type: 'success' });
+
       setShowChangePasswordModal(false);
       setEditingUser(null);
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error) {
-      console.error('Error updating password:', error);
-      addNotification({
-        title: 'Error',
-        message: 'Failed to update password. Please try again.',
-        type: 'error'
-      });
+    } catch (error: any) {
+      const serverMsg = error?.context?.error || error?.message || 'Failed to update password. Please try again.';
+      console.error('Error updating password:', serverMsg, error);
+      addNotification({ title: 'Error', message: serverMsg, type: 'error' });
+      addToast({ title: 'Error', message: serverMsg, type: 'error' });
     }
   };
   const getRoleBadgeClass = (role: string) => {
