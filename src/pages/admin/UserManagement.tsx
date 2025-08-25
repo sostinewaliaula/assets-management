@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { useSupabase } from '../../hooks/useSupabase';
-import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon } from 'lucide-react';
-import { User, Department } from '../../lib/supabase';
+import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon, XCircleIcon } from 'lucide-react';
+import { User } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 import { userService } from '../../services/database';
 const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { addNotification } = useNotifications();
-  const { isConnected, isConnecting, lastError, query } = useSupabase();
+  const { addNotification, addToast } = useNotifications();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
@@ -30,7 +28,9 @@ const UserManagement: React.FC = () => {
     role: 'user',
     department_id: '',
     position: '',
-    phone: ''
+    phone: '',
+    password: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -51,7 +51,7 @@ const UserManagement: React.FC = () => {
         if (deptError) {
           console.error('Error fetching departments:', deptError);
         } else {
-          setDepartments(deptData);
+          setDepartments((deptData as Array<{ id: string; name: string }>) || []);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -80,7 +80,7 @@ const UserManagement: React.FC = () => {
       result = result.filter(user => user.role === filterRole);
     }
     if (filterDepartment !== 'All') {
-      result = result.filter(user => getDepartmentName(user.department_id) === filterDepartment);
+      result = result.filter(user => getDepartmentName(user.department_id || null) === filterDepartment);
     }
     setFilteredUsers(result);
   }, [users, searchTerm, filterRole, filterDepartment]);
@@ -88,39 +88,27 @@ const UserManagement: React.FC = () => {
     e.preventDefault();
     
     try {
-      // Get the department ID from the department name
-      let departmentId = null;
-      if (newUser.department_id && newUser.department_id !== '') {
-        const { data: deptData, error: deptError } = await supabase
-          .from('departments')
-          .select('id')
-          .eq('name', newUser.department_id)
-          .single();
-        
-        if (deptError) {
-          throw new Error('Invalid department selected');
-        }
-        departmentId = deptData.id;
+      if (newUser.password.length < 8) {
+        addToast({ title: 'Weak password', message: 'At least 8 characters.', type: 'warning' });
+        return;
       }
-      
-      // Create user directly in the users table (since we're not using Supabase Auth for this demo)
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert([{
+      if (newUser.password !== newUser.confirmPassword) {
+        addToast({ title: 'Password mismatch', message: 'Passwords do not match.', type: 'error' });
+        return;
+      }
+      // Call secure Edge Function to create auth user and profile
+      const { error } = await supabase.functions.invoke('admin_create_user', {
+        body: {
           email: newUser.email,
           name: newUser.name,
           role: newUser.role,
-          department_id: departmentId,
+          department_id: newUser.department_id || null,
           position: newUser.position,
           phone: newUser.phone,
-          is_active: true
-        }])
-        .select()
-        .single();
-      
-      if (userError) {
-        throw userError;
-      }
+          password: newUser.password
+        }
+      });
+      if (error) throw error;
       
       // Refresh the users list
       const fetchedUsers = await userService.getAll();
@@ -134,7 +122,9 @@ const UserManagement: React.FC = () => {
         role: 'user',
         department_id: '',
         position: '',
-        phone: ''
+        phone: '',
+        password: '',
+        confirmPassword: ''
       });
       
       addNotification({
@@ -142,13 +132,15 @@ const UserManagement: React.FC = () => {
         message: `New user "${newUser.name}" has been added successfully`,
         type: 'success'
       });
-    } catch (error) {
+      addToast({ title: 'Success', message: 'User created.', type: 'success' });
+    } catch (error: any) {
       console.error('Error creating user:', error);
       addNotification({
         title: 'Error',
         message: error.message || 'Failed to create user. Please try again.',
         type: 'error'
       });
+      addToast({ title: 'Error', message: 'Failed to create user.', type: 'error' });
     }
   };
   const handleEditUser = async (e: React.FormEvent) => {
@@ -156,38 +148,14 @@ const UserManagement: React.FC = () => {
     if (!editingUser) return;
     
     try {
-      // Get the department ID from the department name
-      let departmentId = null;
-      if (newUser.department_id && newUser.department_id !== '') {
-        const { data: deptData, error: deptError } = await supabase
-          .from('departments')
-          .select('id')
-          .eq('name', newUser.department_id)
-          .single();
-        
-        if (deptError) {
-          throw new Error('Invalid department selected');
-        }
-        departmentId = deptData.id;
-      }
-      
-      // Update user profile in the users table
-      const { error: profileError } = await supabase
-        .from('users')
-        .update({
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
-          department_id: departmentId,
-          position: newUser.position,
-          phone: newUser.phone,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingUser.id);
-      
-      if (profileError) {
-        throw profileError;
-      }
+      await userService.update(editingUser.id, {
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role as any,
+        department_id: newUser.department_id || null,
+        position: newUser.position,
+        phone: newUser.phone
+      } as any);
       
       // Refresh the users list
       const fetchedUsers = await userService.getAll();
@@ -202,7 +170,9 @@ const UserManagement: React.FC = () => {
         role: 'user',
         department_id: '',
         position: '',
-        phone: ''
+        phone: '',
+        password: '',
+        confirmPassword: ''
       });
       
       addNotification({
@@ -210,13 +180,15 @@ const UserManagement: React.FC = () => {
         message: `User "${newUser.name}" has been updated successfully`,
         type: 'success'
       });
-    } catch (error) {
+      addToast({ title: 'Success', message: 'User updated.', type: 'success' });
+    } catch (error: any) {
       console.error('Error updating user:', error);
       addNotification({
         title: 'Error',
         message: error.message || 'Failed to update user. Please try again.',
         type: 'error'
       });
+      addToast({ title: 'Error', message: 'Failed to update user.', type: 'error' });
     }
   };
   const handleDeleteUser = async () => {
@@ -246,7 +218,7 @@ const UserManagement: React.FC = () => {
       
       setShowDeleteModal(false);
       setEditingUser(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       addNotification({
         title: 'Error',
@@ -331,7 +303,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const getDepartmentName = (departmentId: string) => {
+  const getDepartmentName = (departmentId: string | null | undefined) => {
     if (!departmentId) return 'N/A';
     const dept = departments.find(d => d.id === departmentId);
     return dept ? dept.name : 'N/A';
@@ -483,7 +455,7 @@ const UserManagement: React.FC = () => {
               <td className="px-6 py-4">{user.phone || 'N/A'}</td>
               <td className="px-6 py-4">
                 <div className="flex space-x-2">
-                  <button onClick={() => { setEditingUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id, position: user.position, phone: user.phone }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
+                  <button onClick={() => { setEditingUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id || '', position: user.position || '', phone: user.phone || '', password: '', confirmPassword: '' }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
                   <button onClick={() => { setEditingUser(user); setShowChangePasswordModal(true); }} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Change Password"><LockIcon className="w-5 h-5" /></button>
                   <button onClick={() => { setEditingUser(user); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete User" disabled={user.role === 'admin'}><TrashIcon className="w-5 h-5" style={{ opacity: user.role === 'admin' ? 0.5 : 1 }} /></button>
                 </div>
@@ -547,7 +519,7 @@ const UserManagement: React.FC = () => {
               <label className="block mb-2 text-sm font-medium text-primary">Department</label>
               <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newUser.department_id || ''} onChange={e => setNewUser({ ...newUser, department_id: e.target.value })} required>
                 <option value="">Select Department</option>
-                {departments.map(department => <option key={department.id} value={department.name}>{department.name}</option>)}
+                {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
               </select>
             </div>
             <div>
@@ -562,6 +534,14 @@ const UserManagement: React.FC = () => {
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Phone Number</label>
               <input type="tel" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="555-123-4567" value={newUser.phone} onChange={e => setNewUser({ ...newUser, phone: e.target.value })} />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Password</label>
+              <input type="password" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Minimum 8 characters" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Confirm Password</label>
+              <input type="password" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={e => setNewUser({ ...newUser, confirmPassword: e.target.value })} required />
             </div>
           </div>
           <div className="flex justify-end space-x-2">
@@ -640,7 +620,7 @@ const UserManagement: React.FC = () => {
                 department_id: e.target.value
               })} required>
                     <option value="">Select Department</option>
-                    {departments.map(department => <option key={department.id} value={department.name}>
+                    {departments.map(department => <option key={department.id} value={department.id}>
                         {department.name}
                       </option>)}
                   </select>
