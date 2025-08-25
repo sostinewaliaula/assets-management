@@ -1,38 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { MonitorIcon, AlertCircleIcon, UserIcon, BuildingIcon, ArrowRightIcon, CheckCircleIcon, ArchiveIcon, ClockIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { generateMockAssets, generateMockIssues, generateMockUsers, departments, assetTypes } from '../../utils/mockData';
+import { assetService, issueService, userService, departmentService } from '../../services/database';
+import { Asset, Issue, User, Department } from '../../lib/supabase';
 const AdminDashboard: React.FC = () => {
   const { addToast } = useNotifications();
-  const [assets, setAssets] = useState([]);
-  const [issues, setIssues] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assetsByDepartment, setAssetsByDepartment] = useState([]);
-  const [assetsByType, setAssetsByType] = useState([]);
-  const [assetsByStatus, setAssetsByStatus] = useState([]);
-  const [issuesByStatus, setIssuesByStatus] = useState([]);
+  const [assetsByDepartment, setAssetsByDepartment] = useState<{ name: string; value: number }[]>([]);
+  const [assetsByType, setAssetsByType] = useState<{ name: string; value: number }[]>([]);
+  const [assetsByStatus, setAssetsByStatus] = useState<{ name: string; value: number }[]>([]);
+  const [issuesByStatus, setIssuesByStatus] = useState<{ name: string; value: number }[]>([]);
+  const hasAnnouncedLoaded = useRef(false);
   useEffect(() => {
-    // Fetch dashboard data
+    // Fetch dashboard data from Supabase
     const fetchData = async () => {
       try {
-        // In a real app, this would be API calls
-        const mockAssets = generateMockAssets(50);
-        const mockIssues = generateMockIssues(mockAssets, 30);
-        const mockUsers = generateMockUsers(20);
-        setAssets(mockAssets);
-        setIssues(mockIssues);
-        setUsers(mockUsers);
-        // Process data for charts
-        processChartData(mockAssets, mockIssues);
-        addToast({
-          title: 'Dashboard Loaded',
-          message: 'Dashboard data has been loaded successfully.',
-          type: 'success',
-          duration: 2000
-        });
+        const [fAssets, fIssues, fUsers, fDepts] = await Promise.all([
+          assetService.getAll(),
+          issueService.getAll(),
+          userService.getAll(),
+          departmentService.getAll()
+        ]);
+        setAssets(fAssets);
+        setIssues(fIssues);
+        setUsers(fUsers);
+        setDepartments(fDepts);
+        processChartData(fAssets, fIssues, fDepts);
+        if (!hasAnnouncedLoaded.current) {
+          addToast({
+            title: 'Dashboard Loaded',
+            message: 'Dashboard data has been loaded successfully.',
+            type: 'success',
+            duration: 2000
+          });
+          hasAnnouncedLoaded.current = true;
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         addToast({
@@ -46,64 +54,43 @@ const AdminDashboard: React.FC = () => {
       }
     };
     fetchData();
-  }, [addToast]);
-  const processChartData = (assets, issues) => {
-    // Assets by department
-    const deptCounts = {};
-    departments.forEach(dept => {
-      deptCounts[dept] = 0;
-    });
+  }, []);
+  const processChartData = (assets: Asset[], issues: Issue[], depts: Department[]) => {
+    // Assets by department (name mapping)
+    const deptIdToName: Record<string, string> = {};
+    depts.forEach(d => { deptIdToName[d.id] = d.name; });
+    const deptCounts: Record<string, number> = {};
     assets.forEach(asset => {
-      if (asset.department) {
-        deptCounts[asset.department] = (deptCounts[asset.department] || 0) + 1;
-      }
+      const name = asset.department_id ? (deptIdToName[asset.department_id] || 'Unassigned') : 'Unassigned';
+      deptCounts[name] = (deptCounts[name] || 0) + 1;
     });
-    const deptData = Object.entries(deptCounts).map(([name, value]) => ({
-      name,
-      value
-    })).sort((a, b) => b.value - a.value).slice(0, 5); // Top 5 departments
+    const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value).slice(0, 5);
     setAssetsByDepartment(deptData);
     // Assets by type
-    const typeCounts = {};
-    assetTypes.forEach(type => {
-      typeCounts[type] = 0;
-    });
+    const typeCounts: Record<string, number> = {};
     assets.forEach(asset => {
-      if (asset.type) {
-        typeCounts[asset.type] = (typeCounts[asset.type] || 0) + 1;
-      }
+      if (asset.type) typeCounts[asset.type] = (typeCounts[asset.type] || 0) + 1;
     });
-    const typeData = Object.entries(typeCounts).map(([name, value]) => ({
-      name,
-      value
-    })).filter(item => item.value > 0).sort((a, b) => b.value - a.value);
+    const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }))
+      .filter(i => i.value > 0).sort((a, b) => b.value - a.value);
     setAssetsByType(typeData);
     // Assets by status
-    const statusCounts = {};
+    const statusCounts: Record<string, number> = {};
     assets.forEach(asset => {
-      if (asset.status) {
-        statusCounts[asset.status] = (statusCounts[asset.status] || 0) + 1;
-      }
+      if (asset.status) statusCounts[asset.status] = (statusCounts[asset.status] || 0) + 1;
     });
-    const statusData = Object.entries(statusCounts).map(([name, value]) => ({
-      name,
-      value
-    }));
+    const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
     setAssetsByStatus(statusData);
     // Issues by status
-    const issueStatusCounts = {};
+    const issueStatusCounts: Record<string, number> = {};
     issues.forEach(issue => {
-      if (issue.status) {
-        issueStatusCounts[issue.status] = (issueStatusCounts[issue.status] || 0) + 1;
-      }
+      if (issue.status) issueStatusCounts[issue.status] = (issueStatusCounts[issue.status] || 0) + 1;
     });
-    const issueStatusData = Object.entries(issueStatusCounts).map(([name, value]) => ({
-      name,
-      value
-    }));
+    const issueStatusData = Object.entries(issueStatusCounts).map(([name, value]) => ({ name, value }));
     setIssuesByStatus(issueStatusData);
   };
-  const getStatusColor = status => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'Available':
       case 'Assigned':
@@ -121,6 +108,32 @@ const AdminDashboard: React.FC = () => {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+  const getDeptName = (departmentId: string | null) => {
+    if (!departmentId) return 'Unassigned';
+    const d = departments.find(x => x.id === departmentId);
+    return d ? d.name : 'Unknown';
+  };
+  const getUserName = (userId: string | null) => {
+    if (!userId) return 'Unknown';
+    const u = users.find(x => x.id === userId);
+    return u ? u.name : 'Unknown';
+  };
+  const getAssetName = (assetId: string | null) => {
+    if (!assetId) return 'N/A';
+    const a = assets.find(x => x.id === assetId);
+    return a ? a.name : 'N/A';
+  };
+  const getAssetImage = () => {
+    // Inline SVG placeholder
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+        <rect width="64" height="64" fill="#f3f4f6"/>
+        <rect x="12" y="16" width="40" height="28" rx="4" fill="#9ca3af"/>
+        <rect x="18" y="22" width="28" height="16" rx="2" fill="#e5e7eb"/>
+        <rect x="24" y="48" width="16" height="4" rx="2" fill="#9ca3af"/>
+      </svg>`
+    );
   };
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
@@ -283,10 +296,10 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">{issue.title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Reported by {issue.createdBy.name} • {new Date(issue.createdAt).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Reported by {getUserName(issue.reported_by)} • {new Date(issue.created_at).toLocaleDateString()}</p>
                 <div className="flex items-center mt-2">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(issue.status)}`}>{issue.status}</span>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{issue.assetName}</span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{getAssetName(issue.asset_id)}</span>
                 </div>
               </div>
             </div>
@@ -301,13 +314,13 @@ const AdminDashboard: React.FC = () => {
         </div>
         <div className="space-y-4">
           {assets.slice(0, 5).map(asset => <div key={asset.id} className="flex p-4 bg-lightpurple dark:bg-gray-800 rounded-xl">
-            <img src={asset.image} alt={asset.name} className="object-cover w-16 h-16 mr-4 rounded-xl" />
+            <img src={getAssetImage()} alt={asset.name} className="object-cover w-16 h-16 mr-4 rounded-xl" />
             <div>
               <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">{asset.name}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{asset.type} • SN: {asset.serialNumber}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{asset.type} • SN: {asset.serial_number}</p>
               <div className="flex items-center mt-2">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(asset.status)}`}>{asset.status}</span>
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{asset.department}</span>
+                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{getDeptName(asset.department_id)}</span>
               </div>
             </div>
           </div>)}
