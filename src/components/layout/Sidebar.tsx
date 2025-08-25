@@ -63,7 +63,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     icon: <SettingsIcon size={20} />
   }];
   const userOnlySettings = { name: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> };
-  const navItems = isAdmin ? [...adminNavItems, ...userNavItems] : [...userNavItems, userOnlySettings];
+  const navItems = isAdmin 
+    ? [
+        ...adminNavItems,
+        // Include user menu except Notifications to avoid duplicates
+        ...userNavItems.filter(item => item.path !== '/notifications')
+      ] 
+    : [...userNavItems, userOnlySettings];
   const isActive = (path: string) => {
     return location.pathname === path;
   };
