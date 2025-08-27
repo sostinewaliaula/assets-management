@@ -16,7 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   },
   db: {
     schema: 'public'
@@ -32,6 +33,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   }
 })
+
+// Add configuration check function
+export const checkSupabaseConfig = () => {
+  const config = {
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey ? 'Present' : 'Missing',
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey
+  };
+  
+  console.log('Supabase Configuration:', config);
+  
+  if (!config.hasUrl || !config.hasKey) {
+    console.error('❌ Supabase configuration incomplete');
+    return false;
+  }
+  
+  console.log('✅ Supabase configuration complete');
+  return true;
+}
 
 // Add connection health check
 export const checkConnection = async () => {

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { LockIcon, SunIcon, MoonIcon } from 'lucide-react';
+import { LockIcon, SunIcon, MoonIcon, AlertCircleIcon } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 const ResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -11,16 +12,70 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidToken, setIsValidToken] = useState(false);
+  const [isCheckingToken, setIsCheckingToken] = useState(true);
   
   const { resetPassword } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { addToast } = useNotifications();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isDark = theme === 'dark';
+
+  // Check if we have a valid recovery token
+  useEffect(() => {
+    const checkRecoveryToken = async () => {
+      try {
+        // Check if we have a session (user clicked recovery link)
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+          setIsValidToken(false);
+        } else if (session?.user) {
+          // User has a valid session from recovery link
+          setIsValidToken(true);
+        } else {
+          // Check if we have access_token in URL params (fallback)
+          const accessToken = searchParams.get('access_token');
+          const refreshToken = searchParams.get('refresh_token');
+          
+          if (accessToken && refreshToken) {
+            // Set the session manually
+            const { error: setSessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            if (setSessionError) {
+              console.error('Error setting session:', setSessionError);
+              setIsValidToken(false);
+            } else {
+              setIsValidToken(true);
+            }
+          } else {
+            setIsValidToken(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking recovery token:', error);
+        setIsValidToken(false);
+      } finally {
+        setIsCheckingToken(false);
+      }
+    };
+
+    checkRecoveryToken();
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!isValidToken) {
+      setError('Invalid or expired recovery link. Please request a new password reset.');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       addToast({
@@ -48,7 +103,7 @@ const ResetPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await resetPassword('', password); // Token is handled by Supabase session
+      await resetPassword(password);
       setMessage('Password has been reset successfully.');
       addToast({
         title: 'Password Reset',
@@ -56,6 +111,10 @@ const ResetPassword: React.FC = () => {
         type: 'success',
         duration: 5000
       });
+      
+      // Sign out the user after password reset
+      await supabase.auth.signOut();
+      
       setTimeout(() => {
         navigate('/login');
       }, 2000);
@@ -71,6 +130,59 @@ const ResetPassword: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while checking token
+  if (isCheckingToken) {
+    return (
+      <div className="flex items-center min-h-screen p-6 bg-lightgreen dark:bg-gray-950">
+        <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+          <div className="flex items-center justify-center p-12">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-lg text-gray-600 dark:text-gray-300">Verifying recovery link...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if token is invalid
+  if (!isValidToken) {
+    return (
+      <div className="flex items-center min-h-screen p-6 bg-lightgreen dark:bg-gray-950">
+        <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+          <div className="flex items-center justify-center p-12">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircleIcon className="w-8 h-8 text-red-600 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                Invalid Recovery Link
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                This password recovery link is invalid or has expired. Please request a new password reset.
+              </p>
+              <Link
+                to="/forgot-password"
+                className="inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+              >
+                Request New Reset
+              </Link>
+              <div className="mt-4">
+                <Link
+                  className="text-sm text-secondary hover:underline"
+                  to="/login"
+                >
+                  Back to Login
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center min-h-screen p-6 bg-lightgreen dark:bg-gray-950">
@@ -106,6 +218,9 @@ const ResetPassword: React.FC = () => {
               <h1 className="mb-4 text-xl font-bold text-primary dark:text-primary">
                 Reset Password
               </h1>
+              <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+                Enter your new password below. Make sure it's at least 8 characters long.
+              </p>
               {error && (
                 <div className="px-4 py-2 mb-4 text-sm text-red-700 bg-red-100 dark:bg-red-900 dark:text-red-200 rounded-md">
                   {error}

@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, password: string) => Promise<void>;
+  resetPassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -161,31 +161,41 @@ export const AuthProvider: React.FC<{
   // Forgot password function
   const forgotPassword = async (email: string) => {
     try {
+      console.log('🔐 Attempting to send password reset email to:', email);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
 
       if (error) {
+        console.error('❌ Supabase forgot password error:', error);
         throw error;
       }
+      
+      console.log('✅ Password reset email sent successfully');
     } catch (error) {
-      console.error('Forgot password failed:', error);
+      console.error('❌ Forgot password failed:', error);
       throw error;
     }
   };
 
   // Reset password function
-  const resetPassword = async (token: string, password: string) => {
+  const resetPassword = async (password: string) => {
     try {
+      console.log('🔐 Attempting to reset password');
+      
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
+        console.error('❌ Supabase reset password error:', error);
         throw error;
       }
+      
+      console.log('✅ Password reset successfully');
     } catch (error) {
-      console.error('Reset password failed:', error);
+      console.error('❌ Reset password failed:', error);
       throw error;
     }
   };
