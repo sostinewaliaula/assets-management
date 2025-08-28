@@ -53,7 +53,7 @@ const Login: React.FC = () => {
     <div className="flex-1 h-full max-w-4xl mx-auto overflow-hidden bg-white dark:bg-gray-900 rounded-2xl shadow-card">
       <div className="flex flex-col overflow-y-auto md:flex-row">
         <div className="h-32 md:h-auto md:w-1/2">
-          <img aria-hidden="true" className="object-cover w-full h-full rounded-l-2xl" src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80" alt="Office" />
+          <img aria-hidden="true" className="object-cover w-full h-full rounded-l-2xl" src="https://i.ibb.co/zWhdQPHQ/Themabeeld-ITSAM-1-2048x1363-1-1.png" alt="Office" />
         </div>
         <div className="flex items-center justify-center p-6 sm:p-12 md:w-1/2">
           <div className="w-full">
