@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { HomeIcon, MonitorIcon, TicketIcon, UsersIcon, BuildingIcon, SettingsIcon, LogOutIcon, BellIcon } from 'lucide-react';
+import { HomeIcon, MonitorIcon, TicketIcon, UsersIcon, BuildingIcon, SettingsIcon, LogOutIcon, BellIcon, UserIcon } from 'lucide-react';
 interface SidebarProps {
   closeSidebar: () => void;
 }
@@ -32,6 +32,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     name: 'Notifications',
     path: '/notifications',
     icon: <BellIcon size={20} />
+  }, {
+    name: 'Profile',
+    path: '/profile',
+    icon: <UserIcon size={20} />
   }];
   const adminNavItems = [{
     name: 'Admin Dashboard',
@@ -58,6 +62,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     path: '/notifications',
     icon: <BellIcon size={20} />
   }, {
+    name: 'Profile',
+    path: '/profile',
+    icon: <UserIcon size={20} />
+  }, {
     name: 'Settings',
     path: '/settings',
     icon: <SettingsIcon size={20} />
@@ -67,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     ? [
         ...adminNavItems,
         // Include user menu except Notifications to avoid duplicates
-        ...userNavItems.filter(item => item.path !== '/notifications')
+        ...userNavItems.filter(item => item.path !== '/notifications' && item.path !== '/profile')
       ] 
     : [...userNavItems, userOnlySettings];
   const isActive = (path: string) => {

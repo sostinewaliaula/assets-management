@@ -25,6 +25,7 @@ import UserIssues from './pages/user/UserIssues';
 import AssetDetails from './pages/shared/AssetDetails';
 import NotificationsPage from './pages/shared/NotificationsPage';
 import Settings from './pages/shared/Settings';
+import Profile from './pages/shared/Profile';
 import { supabase } from './lib/supabase';
 import { useSupabase } from './hooks/useSupabase';
 import ConnectionStatus from './components/ui/ConnectionStatus';
@@ -138,6 +139,7 @@ function App() {
                   <Route path="asset/:id" element={<AssetDetails />} />
                 </Route>
                 <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Routes>

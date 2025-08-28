@@ -110,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="py-1">
                 <Link
-                  to="/settings"
+                  to="/profile"
                   className="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-lightgreen/60 dark:hover:bg-gray-700/80"
                   onClick={() => setAccountOpen(false)}
                 >
