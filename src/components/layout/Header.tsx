@@ -52,9 +52,15 @@ const Header: React.FC<HeaderProps> = ({
   }, [user?.id, notificationsOpen]);
 
   return <header className="z-10 py-4 bg-white dark:bg-gray-900 shadow-sm">
-    <div className="container flex items-center justify-between h-full px-6 mx-auto">
+    <div className="container flex items-center justify-between h-full px-4 sm:px-6 mx-auto">
+      {/* Mobile menu button */}
+      <div className="flex items-center lg:hidden mr-2">
+        <button onClick={toggleSidebar} aria-label="Open sidebar" className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-secondary bg-gray-100 dark:bg-gray-800">
+          <MenuIcon className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+        </button>
+      </div>
       {/* Logo */}
-      <Link to="/" className="flex items-center mr-8 select-none">
+      <Link to="/" className="flex items-center mr-4 sm:mr-8 select-none">
         <span className="text-2xl font-bold" style={{ color: '#219653' }}>Assets -</span>
         <span className="text-2xl font-bold ml-1" style={{ color: '#9B51E0' }}>Management</span>
       </Link>

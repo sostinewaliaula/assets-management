@@ -84,15 +84,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   return <div className="flex flex-col h-full py-4 text-gray-800 dark:text-gray-200">
     <div className="px-4 pb-6">
       <Link to="/" className="flex flex-col items-center" onClick={closeSidebar}>
-        <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" className="h-10 w-auto mb-2" />
+        <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" className="h-10 w-auto mb-2 hidden sm:block" />
         <div className="flex items-center">
-          <span className="text-2xl font-bold" style={{ color: '#219653' }}>Caava</span>
-          <span className="ml-1 text-2xl font-bold" style={{ color: '#9B51E0' }}>Group</span>
+          <span className="text-xl sm:text-2xl font-bold" style={{ color: '#219653' }}>Caava</span>
+          <span className="ml-1 text-xl sm:text-2xl font-bold" style={{ color: '#9B51E0' }}>Group</span>
         </div>
       </Link>
     </div>
     <div className="flex-1 px-2 space-y-1">
-      {navItems.map(item => <Link key={item.path} to={item.path} onClick={closeSidebar} className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors duration-150 ${isActive(item.path) ? 'bg-gradient-to-r from-primary to-secondary text-white font-bold shadow-button' : 'text-gray-700 dark:text-gray-200 hover:bg-lightgreen hover:text-primary dark:hover:text-primary'}`}> <span className="mr-3">{item.icon}</span> {item.name} </Link>)}
+      {navItems.map(item => <Link key={item.path} to={item.path} onClick={closeSidebar} className={`flex items-center px-3 sm:px-4 py-3 text-sm font-medium rounded-xl transition-colors duration-150 ${isActive(item.path) ? 'bg-gradient-to-r from-primary to-secondary text-white font-bold shadow-button' : 'text-gray-700 dark:text-gray-200 hover:bg-lightgreen hover:text-primary dark:hover:text-primary'}`}> <span className="mr-3">{item.icon}</span> {item.name} </Link>)}
     </div>
     <div className="px-2 mt-6">
       <button onClick={() => { 
