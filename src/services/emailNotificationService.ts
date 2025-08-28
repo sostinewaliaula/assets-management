@@ -169,7 +169,7 @@ export class EmailNotificationService {
   }
 
   private createEmailTemplate(data: EmailNotificationData): EmailTemplate {
-    const baseSubject = `[Turnkey Africa] ${data.title}`;
+    const baseSubject = `[Caava Group] ${data.title}`;
     
     const htmlBody = `
       <!DOCTYPE html>
@@ -195,7 +195,8 @@ export class EmailNotificationService {
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin: 0; font-size: 24px;">Turnkey Africa</h1>
+            <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" style="height: 40px;" />
+            <h1 style="margin: 10px 0 0 0; font-size: 24px;">Caava Group</h1>
             <p style="margin: 5px 0 0 0; opacity: 0.9;">Assets Management System</p>
           </div>
           <div class="content">
@@ -207,11 +208,11 @@ export class EmailNotificationService {
             </div>
             <a href="${window.location.origin}/notifications" class="button">View All Notifications</a>
             <p style="margin: 15px 0 0 0; font-size: 12px; color: #6c757d;">
-              This is an automated notification from the Turnkey Africa Assets Management System.
+              This is an automated notification from the Caava Group Assets Management System.
             </p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} Turnkey Africa. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Caava Group. All rights reserved.</p>
             <p>If you have any questions, please contact your system administrator.</p>
           </div>
         </div>
@@ -220,7 +221,7 @@ export class EmailNotificationService {
     `;
 
     const textBody = `
-Turnkey Africa - Assets Management System
+Caava Group - Assets Management System
 
 ${data.title.toUpperCase()}
 
@@ -231,8 +232,8 @@ ${data.message}
 View all notifications: ${window.location.origin}/notifications
 
 ---
-This is an automated notification from the Turnkey Africa Assets Management System.
-© ${new Date().getFullYear()} Turnkey Africa. All rights reserved.
+This is an automated notification from the Caava Group Assets Management System.
+© ${new Date().getFullYear()} Caava Group. All rights reserved.
     `;
 
     return {

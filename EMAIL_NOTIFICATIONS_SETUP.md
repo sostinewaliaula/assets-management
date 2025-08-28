@@ -49,7 +49,7 @@ VITE_SMTP_USERNAME=your-email@gmail.com
 VITE_SMTP_PASSWORD=your-app-password
 
 # Sender Configuration
-VITE_SENDER_NAME=Turnkey Africa
+VITE_SENDER_NAME=Caava Group
 VITE_SENDER_EMAIL=your-email@gmail.com
 
 # Optional: Company Branding
@@ -78,7 +78,7 @@ SMTP_PORT=587
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SENDER_EMAIL=your-email@gmail.com
-SENDER_NAME=Turnkey Africa
+SENDER_NAME=Caava Group
 ```
 
 ## Configuration Options
@@ -87,7 +87,7 @@ SENDER_NAME=Turnkey Africa
 
 The system automatically creates professional email templates with:
 
-- **Company branding** (Turnkey Africa)
+- **Company branding** (Caava Group)
 - **Responsive design** for mobile and desktop
 - **Notification type indicators** (success, error, warning, info)
 - **Action buttons** linking back to the application

@@ -28,7 +28,7 @@ serve(async (req) => {
     const smtpUsername = Deno.env.get('SMTP_USERNAME')
     const smtpPassword = Deno.env.get('SMTP_PASSWORD')
     const senderEmail = Deno.env.get('SENDER_EMAIL')
-    const senderName = Deno.env.get('SENDER_NAME') || 'Turnkey Africa'
+    const senderName = Deno.env.get('SENDER_NAME') || 'Caava Group'
 
     // Validate required environment variables
     if (!smtpUsername || !smtpPassword || !senderEmail) {

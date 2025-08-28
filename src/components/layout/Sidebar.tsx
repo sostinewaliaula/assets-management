@@ -75,9 +75,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
   return <div className="flex flex-col h-full py-4 text-gray-800 dark:text-gray-200">
     <div className="px-4 pb-6">
-      <Link to="/" className="flex items-center" onClick={closeSidebar}>
-        <span className="text-2xl font-bold" style={{ color: '#219653' }}>Turnkey</span>
-        <span className="ml-1 text-2xl font-bold" style={{ color: '#9B51E0' }}>Africa</span>
+      <Link to="/" className="flex flex-col items-center" onClick={closeSidebar}>
+        <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" className="h-10 w-auto mb-2" />
+        <div className="flex items-center">
+          <span className="text-2xl font-bold" style={{ color: '#219653' }}>Caava</span>
+          <span className="ml-1 text-2xl font-bold" style={{ color: '#9B51E0' }}>Group</span>
+        </div>
       </Link>
     </div>
     <div className="flex-1 px-2 space-y-1">

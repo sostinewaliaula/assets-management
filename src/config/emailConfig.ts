@@ -40,13 +40,13 @@ export const emailConfig: EmailConfig = {
     },
   },
   sender: {
-    name: import.meta.env.VITE_SENDER_NAME || 'Turnkey Africa',
+    name: import.meta.env.VITE_SENDER_NAME || 'Caava Group',
     email: import.meta.env.VITE_SENDER_EMAIL || '',
   },
   templates: {
-    defaultSubject: '[Turnkey Africa]',
-    companyName: 'Turnkey Africa',
-    companyLogo: import.meta.env.VITE_COMPANY_LOGO,
+    defaultSubject: '[Caava Group]',
+    companyName: 'Caava Group',
+    companyLogo: import.meta.env.VITE_COMPANY_LOGO || 'http://ticket.turnkey.local:8080/scp/logo.php?login',
     primaryColor: '#667eea',
     secondaryColor: '#764ba2',
   },

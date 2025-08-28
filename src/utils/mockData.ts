@@ -91,7 +91,7 @@ export const generateMockAssets = (count = 50) => {
       assignedUser,
       assignedUserId,
       image,
-      notes: `This is a ${condition.toLowerCase()} condition ${manufacturer} ${assetType} at Turnkey Africa.`
+      notes: `This is a ${condition.toLowerCase()} condition ${manufacturer} ${assetType} at Caava Group.`
     });
   }
   return assets;
@@ -114,7 +114,7 @@ export const generateMockIssues = (assets, count = 30) => {
     issues.push({
       id: `I-${i + 1}`,
       title: `${type} - ${asset.name}`,
-      description: `Issue with ${asset.name}: ${type.toLowerCase()} needs attention at Turnkey Africa.`,
+      description: `Issue with ${asset.name}: ${type.toLowerCase()} needs attention at Caava Group.`,
       assetId: asset.id,
       assetName: asset.name,
       assetImage: asset.image,
@@ -136,7 +136,7 @@ export const generateMockIssues = (assets, count = 30) => {
       resolvedAt: resolvedDate ? resolvedDate.toISOString() : null,
       comments: [{
         id: `C-${i}-1`,
-        text: `Reported ${type.toLowerCase()} issue with the ${asset.name} at Turnkey Africa.`,
+        text: `Reported ${type.toLowerCase()} issue with the ${asset.name} at Caava Group.`,
         createdBy: asset.assignedUser ? asset.assignedUser.name : `User ${Math.floor(Math.random() * 100)}`,
         createdAt: createdDate.toISOString()
       }]
