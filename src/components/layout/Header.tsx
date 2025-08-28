@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNotifications } from '../../contexts/NotificationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MenuIcon, BellIcon, SunIcon, MoonIcon, UserIcon } from 'lucide-react';
 import NotificationDropdown from '../ui/NotificationDropdown';
@@ -13,11 +12,31 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({
   toggleSidebar
 }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [accountOpen, setAccountOpen] = useState(false);
   const isDark = theme === 'dark';
+
+  const accountRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    };
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, []);
 
   useEffect(() => {
     const loadUnread = async () => {
@@ -62,8 +81,12 @@ const Header: React.FC<HeaderProps> = ({
           {notificationsOpen && <NotificationDropdown onClose={() => setNotificationsOpen(false)} />}
         </div>
         {/* Profile */}
-        <div className="relative">
-          <button className="flex items-center focus:outline-none" aria-label="Account">
+        <div className="relative" ref={accountRef}>
+          <button
+            onClick={() => setAccountOpen(!accountOpen)}
+            className="flex items-center focus:outline-none"
+            aria-label="Account"
+          >
             <div className="hidden mr-2 text-right md:block">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
                 {user?.name}
@@ -76,6 +99,44 @@ const Header: React.FC<HeaderProps> = ({
               <UserIcon className="w-6 h-6" />
             </div>
           </button>
+          {accountOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-20">
+              <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/40">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{user?.name || 'Account'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-medium rounded-full bg-lightgreen text-primary">
+                  {user?.role === 'admin' ? 'Administrator' : (user?.role || 'User')}
+                </span>
+              </div>
+              <div className="py-1">
+                <Link
+                  to="/settings"
+                  className="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-lightgreen/60 dark:hover:bg-gray-700/80"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  Profile
+                </Link>
+                <Link
+                  to="/settings"
+                  className="block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-lightgreen/60 dark:hover:bg-gray-700/80"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  Settings
+                </Link>
+              </div>
+              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <button
+                onClick={() => {
+                  setAccountOpen(false);
+                  logout();
+                  setTimeout(() => { window.location.href = '/login'; }, 300);
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
