@@ -1,4 +1,6 @@
-import { supabase, Department, Asset, User, Issue, IssueComment, AssetMaintenance, NotificationRecord } from '../lib/supabase'
+import { supabase } from '../lib/supabase';
+import { emailNotificationService, EmailNotificationData } from './emailNotificationService';
+import { Asset, Department, User, Issue, IssueComment, AssetMaintenance, NotificationRecord } from '../lib/supabase';
 
 // Department operations
 export const departmentService = {
@@ -63,15 +65,18 @@ export const notificationService = {
     if (error) throw error;
     return (data || []).slice(0, limit);
   },
+  
   async markAsRead(id: string): Promise<NotificationRecord> {
     const { data, error } = await supabase.rpc('mark_notification_read', { target_id: id });
     if (error) throw error;
     return data as NotificationRecord;
   },
+  
   async markAllAsRead(userId: string): Promise<void> {
     const { error } = await supabase.rpc('mark_all_notifications_read', { target_user: userId });
     if (error) throw error;
   },
+  
   async create(rec: Omit<NotificationRecord, 'id' | 'created_at'>): Promise<NotificationRecord> {
     const { data, error } = await supabase
       .from('notifications')
@@ -79,8 +84,13 @@ export const notificationService = {
       .select()
       .single()
     if (error) throw error
+    
+    // Send email notification after creating the database record
+    await this.sendEmailNotification(data);
+    
     return data
   },
+  
   async notifyUser(userId: string, title: string, message: string, type: NotificationRecord['type']): Promise<void> {
     const { error } = await supabase.rpc('create_notification', {
       target_user: userId,
@@ -89,8 +99,173 @@ export const notificationService = {
       type_param: type
     })
     if (error) throw error
+    
+    // Send email notification after creating the database record
+    await this.sendEmailNotificationForUser(userId, title, message, type);
+  },
+
+  /**
+   * Send email notification for a newly created notification
+   */
+  async sendEmailNotification(notification: NotificationRecord): Promise<void> {
+    try {
+      // Get user details to send email
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('id', notification.user_id)
+        .single();
+
+      if (userError || !user) {
+        console.error('❌ Failed to get user details for email:', userError);
+        return;
+      }
+
+      // Check if email notifications are enabled
+      const isEmailEnabled = await emailNotificationService.isEmailEnabled();
+      if (!isEmailEnabled) {
+        console.log('📧 Email notifications are disabled');
+        return;
+      }
+
+      // Get user email preferences
+      const preferences = await emailNotificationService.getUserEmailPreferences(notification.user_id);
+      if (!preferences.emailNotifications || !preferences.notificationTypes.includes(notification.type)) {
+        console.log('📧 Email notifications disabled for user or notification type');
+        return;
+      }
+
+      // Prepare email data
+      const emailData: EmailNotificationData = {
+        userId: notification.user_id,
+        userEmail: user.email,
+        userName: user.name,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        notificationId: notification.id
+      };
+
+      // Send email notification
+      await emailNotificationService.sendNotificationEmail(emailData);
+      
+    } catch (error) {
+      console.error('❌ Failed to send email notification:', error);
+      // Don't throw error - email failure shouldn't break the notification system
+    }
+  },
+
+  /**
+   * Send email notification for a user (when using notifyUser function)
+   */
+  async sendEmailNotificationForUser(userId: string, title: string, message: string, type: NotificationRecord['type']): Promise<void> {
+    try {
+      // Get user details to send email
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('email, name')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !user) {
+        console.error('❌ Failed to get user details for email:', userError);
+        return;
+      }
+
+      // Check if email notifications are enabled
+      const isEmailEnabled = await emailNotificationService.isEmailEnabled();
+      if (!isEmailEnabled) {
+        console.log('📧 Email notifications are disabled');
+        return;
+      }
+
+      // Get user email preferences
+      const preferences = await emailNotificationService.getUserEmailPreferences(userId);
+      if (!preferences.emailNotifications || !preferences.notificationTypes.includes(type)) {
+        console.log('📧 Email notifications disabled for user or notification type');
+        return;
+      }
+
+      // Create a temporary notification ID for email tracking
+      const tempNotificationId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Prepare email data
+      const emailData: EmailNotificationData = {
+        userId: userId,
+        userEmail: user.email,
+        userName: user.name,
+        title: title,
+        message: message,
+        type: type,
+        notificationId: tempNotificationId
+      };
+
+      // Send email notification
+      await emailNotificationService.sendNotificationEmail(emailData);
+      
+    } catch (error) {
+      console.error('❌ Failed to send email notification:', error);
+      // Don't throw error - email failure shouldn't break the notification system
+    }
+  },
+
+  /**
+   * Send bulk notifications to multiple users with emails
+   */
+  async notifyMultipleUsers(userIds: string[], title: string, message: string, type: NotificationRecord['type']): Promise<void> {
+    try {
+      // Create notifications for all users
+      const notifications = userIds.map(userId => ({
+        user_id: userId,
+        title,
+        message,
+        type,
+        read: false
+      }));
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert(notifications)
+        .select();
+
+      if (error) throw error;
+
+      // Send email notifications for all users
+      if (data && data.length > 0) {
+        const emailNotifications: EmailNotificationData[] = [];
+
+        for (const notification of data) {
+          // Get user details
+          const { data: user } = await supabase
+            .from('users')
+            .select('email, name')
+            .eq('id', notification.user_id)
+            .single();
+
+          if (user) {
+            emailNotifications.push({
+              userId: notification.user_id,
+              userEmail: user.email,
+              userName: user.name,
+              title: notification.title,
+              message: notification.message,
+              type: notification.type,
+              notificationId: notification.id
+            });
+          }
+        }
+
+        // Send bulk emails
+        if (emailNotifications.length > 0) {
+          await emailNotificationService.sendBulkNotifications(emailNotifications);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to send bulk notifications:', error);
+      throw error;
+    }
   }
-}
+};
 
 // Asset operations
 export const assetService = {
