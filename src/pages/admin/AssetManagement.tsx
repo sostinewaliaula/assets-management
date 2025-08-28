@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, DownloadIcon, UploadIcon, RefreshCwIcon, AlertCircleIcon } from 'lucide-react';
 import { assetService, departmentService, userService, notificationService } from '../../services/database';
+import Logo from '../../assets/logo.png';
 import { Asset, Department, User } from '../../lib/supabase';
 
 // Static data for dropdowns (these could also come from the database)
@@ -14,6 +15,9 @@ const assetConditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'
 
 const AssetManagement: React.FC = () => {
   const { addNotification, addToast } = useNotifications();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -108,6 +112,251 @@ const AssetManagement: React.FC = () => {
     
     setFilteredAssets(result);
   }, [assets, searchTerm, filterType, filterStatus, filterDepartment]);
+
+  // Export/Import helpers
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
+
+  // Logo is imported at top-level as Vite asset
+
+  const downloadSampleCsv = () => {
+    const headers = ['name','type','serial_number','status','location','manufacturer','department_id','assigned_to','purchase_date','warranty_expiry'];
+    const sample = [["MacBook Pro 14\"", 'Laptop', 'SN-ABC123', 'Available', 'Headquarters - Floor 1', 'Apple', '', '', '', '']];
+    const rows = [headers.join(','), ...sample.map(r => r.map(v => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(','))];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'assets_import_sample.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const buildHtmlTable = (items: any[]) => {
+    const headers = ['name','type','serial_number','status','location','manufacturer','department_id','assigned_to','purchase_date','warranty_expiry'];
+    const escapeHtml = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const thead = `<thead><tr>${headers.map(h => `<th style="text-align:left;border:1px solid #ccc;padding:6px;">${h}</th>`).join('')}</tr></thead>`;
+    const tbody = `<tbody>${items.map(a => `<tr>${[
+      a.name, a.type, a.serial_number, a.status, a.location || '', (a as any).manufacturer || '', a.department_id || '', a.assigned_to || '', (a as any).purchase_date || '', (a as any).warranty_expiry || ''
+    ].map(v => `<td style=\"border:1px solid #ccc;padding:6px;\">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    return `<table style="border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;">${thead}${tbody}</table>`;
+  };
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const all = await assetService.getAll();
+      if (exportFormat === 'csv') {
+        const headers = ['name','type','serial_number','status','location','manufacturer','department_id','assigned_to','purchase_date','warranty_expiry'];
+        const csvRows: string[] = [];
+        csvRows.push(headers.join(','));
+        for (const a of all) {
+          const row = [
+            a.name,
+            a.type,
+            a.serial_number,
+            a.status,
+            a.location || '',
+            (a as any).manufacturer || '',
+            a.department_id || '',
+            a.assigned_to || '',
+            (a as any).purchase_date || '',
+            (a as any).warranty_expiry || ''
+          ].map(v => {
+            const s = String(v ?? '');
+            return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
+          }).join(',');
+          csvRows.push(row);
+        }
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `assets_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === 'json') {
+        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `assets_export_${Date.now()}.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === 'txt') {
+        const lines = all.map(a => `${a.name}\t${a.type}\t${a.serial_number}\t${a.status}\t${a.location || ''}`);
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `assets_export_${Date.now()}.txt`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === 'excel') {
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>${buildHtmlTable(all)}</body></html>`;
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `assets_export_${Date.now()}.xls`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else if (exportFormat === 'pdf') {
+        // Lazy-load jsPDF UMD build
+        const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+          if ((window as any).jspdf?.jsPDF) return resolve();
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load jsPDF'));
+          document.head.appendChild(s);
+        });
+        await ensureJsPdf();
+        const { jsPDF } = (window as any).jspdf;
+        // Choose larger page if many rows
+        const format = all.length > 25 ? 'A3' : 'A4';
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 36;
+        // Header labels removed per request
+        // Convert imported logo to data URL via canvas (works for same-origin assets bundled by Vite)
+        const logoDataUrl: string = await new Promise(resolve => {
+          try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0);
+                  resolve(canvas.toDataURL('image/png'));
+                } else {
+                  resolve('');
+                }
+              } catch { resolve(''); }
+            };
+            img.onerror = () => resolve('');
+            img.src = (Logo as unknown as string);
+          } catch { resolve(''); }
+        });
+        // Header
+        let y = margin;
+        if (logoDataUrl) {
+          try { doc.addImage(logoDataUrl, 'PNG', margin, y, 120, 48); } catch {}
+        }
+        // Keep space for logo; omit company/app text
+        const dateStr = new Date().toLocaleString();
+        doc.setFontSize(10);
+        doc.text(`Exported: ${dateStr}`, pageWidth - margin - 180, y + 16);
+        y += 56;
+        // Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('Assets Export', margin, y);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`Total assets: ${all.length}`, margin + 140, y);
+        y += 14;
+        // Table with dynamic column sizing
+        const headers = ['Name','Type','Serial','Status','Location','Manufacturer','Dept','Assigned To','Purchase','Warranty'];
+        const weights = [16,12,12,9,15,12,8,10,8,8];
+        const totalWeight = weights.reduce((a,b)=>a+b,0);
+        const availableWidth = pageWidth - margin * 2;
+        const colWidths = weights.map(w => Math.floor((w / totalWeight) * availableWidth));
+        const baseLineHeight = 12;
+        const cellPadding = 6;
+        const measureRowHeight = (cells: string[]) => {
+          let maxLines = 1;
+          for (let i = 0; i < cells.length; i++) {
+            const text = String(cells[i] ?? '');
+            const maxWidth = colWidths[i] - cellPadding;
+            const lines = doc.splitTextToSize(text, maxWidth) as string[];
+            if (lines.length > maxLines) maxLines = lines.length;
+          }
+          return Math.max(18, maxLines * baseLineHeight + 8);
+        };
+        const drawRow = (cells: string[], isHeader = false) => {
+          let x = margin;
+          doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
+          doc.setFontSize(isHeader ? 10 : 9);
+          // determine row height based on wrapped lines
+          const wrapped: string[][] = [];
+          for (let i = 0; i < cells.length; i++) {
+            const text = String(cells[i] ?? '');
+            const maxWidth = colWidths[i] - cellPadding;
+            const lines = doc.splitTextToSize(text, maxWidth) as string[];
+            wrapped.push(lines);
+          }
+          const rowHeight = measureRowHeight(cells);
+          // draw text and cells
+          for (let i = 0; i < cells.length; i++) {
+            const lines = wrapped[i];
+            doc.text(lines, x + 3, y + 12, { baseline: 'alphabetic' });
+            doc.rect(x, y, colWidths[i], rowHeight);
+            x += colWidths[i];
+          }
+          y += rowHeight;
+        };
+        // Header row
+        // Ensure room for header; if not, new page first
+        const headerHeight = measureRowHeight(headers);
+        if (y + headerHeight > pageHeight - margin) {
+          doc.addPage(); y = margin;
+        }
+        drawRow(headers, true);
+        // Data rows with pagination
+        // lookup helpers for names
+        const deptMap = new Map<string, string>(departments.map(d => [d.id, d.name]));
+        const userMap = new Map<string, string>(users.map(u => [u.id, u.name]));
+        for (const a of all) {
+          const cells = [
+            a.name,
+            a.type,
+            a.serial_number || '',
+            a.status,
+            a.location || '',
+            (a as any).manufacturer || '',
+            (a as any).department_id ? (deptMap.get((a as any).department_id) || (a as any).department_id) : '',
+            (a as any).assigned_to ? (userMap.get((a as any).assigned_to) || (a as any).assigned_to) : '',
+            (a as any).purchase_date || '',
+            (a as any).warranty_expiry || ''
+          ];
+          const nextHeight = measureRowHeight(cells);
+          if (y + nextHeight > pageHeight - margin) {
+            doc.addPage();
+            y = margin;
+            drawRow(headers, true);
+          }
+          drawRow(cells);
+        }
+        const fname = `Assets_${new Date().toISOString().slice(0,10)}.pdf`;
+        doc.save(fname);
+      }
+      addNotification({ title: 'Export', message: `Assets exported as ${exportFormat.toUpperCase()}.`, type: 'success' });
+    } catch (e: any) {
+      addNotification({ title: 'Export Failed', message: e?.message || 'Could not export assets.', type: 'error' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleAddAsset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,11 +601,97 @@ const AssetManagement: React.FC = () => {
           <button onClick={() => setShowAddAssetModal(true)} className="button-primary flex items-center">
             <PlusIcon className="w-4 h-4 mr-2" /> Add New Asset
           </button>
-          <button onClick={() => { addNotification({ title: 'Export Started', message: 'Asset data is being exported to CSV', type: 'info' }); }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90">
-            <DownloadIcon className="w-4 h-4 mr-2" /> Export
+          <div className="flex items-center gap-2">
+            <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="csv">CSV</option>
+              <option value="excel">Excel (.xls)</option>
+              <option value="json">JSON</option>
+              <option value="txt">Text (.txt)</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <button onClick={handleExport} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90 disabled:opacity-50" disabled={isExporting}>
+              <DownloadIcon className="w-4 h-4 mr-2" /> {isExporting ? 'Exporting...' : 'Export'}
+            </button>
+          </div>
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setIsImporting(true);
+            try {
+              const text = await file.text();
+              const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+              if (lines.length <= 1) throw new Error('CSV appears empty.');
+              const header = lines[0].split(',').map(h => h.trim().replace(/^\"|\"$/g, ''));
+              const idx = (k: string) => header.indexOf(k);
+              const nameIdx = idx('name');
+              const typeIdx = idx('type');
+              const serialIdx = idx('serial_number');
+              const statusIdx = idx('status');
+              const locationIdx = idx('location');
+              const manufacturerIdx = idx('manufacturer');
+              const deptIdx = idx('department_id');
+              const assignedIdx = idx('assigned_to');
+              const purchaseIdx = idx('purchase_date');
+              const warrantyIdx = idx('warranty_expiry');
+              if ([nameIdx,typeIdx,serialIdx,statusIdx].some(i => i === -1)) {
+                throw new Error('CSV missing required headers: name,type,serial_number,status');
+              }
+              const parseCsvRow = (line: string): string[] => {
+                const result: string[] = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                  const char = line[i];
+                  if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+                    else { inQuotes = !inQuotes; }
+                  } else if (char === ',' && !inQuotes) {
+                    result.push(current); current = '';
+                  } else { current += char; }
+                }
+                result.push(current);
+                return result.map(s => s.trim());
+              };
+              const rows = lines.slice(1).map(parseCsvRow);
+              let created = 0;
+              for (const r of rows) {
+                const get = (i: number) => r[i] ? r[i].replace(/^\"|\"$/g, '') : '';
+                const payload: any = {
+                  name: get(nameIdx),
+                  type: get(typeIdx),
+                  serial_number: get(serialIdx),
+                  status: get(statusIdx) || 'Available',
+                  location: locationIdx >= 0 ? get(locationIdx) : null,
+                  manufacturer: manufacturerIdx >= 0 ? get(manufacturerIdx) : null,
+                  department_id: deptIdx >= 0 ? get(deptIdx) || null : null,
+                  assigned_to: assignedIdx >= 0 ? get(assignedIdx) || null : null,
+                  purchase_date: purchaseIdx >= 0 ? get(purchaseIdx) || null : null,
+                  warranty_expiry: warrantyIdx >= 0 ? get(warrantyIdx) || null : null
+                };
+                if (!payload.name || !payload.type || !payload.serial_number) continue;
+                try {
+                  await assetService.create(payload);
+                  created++;
+                } catch (err) {
+                  // continue on error for individual rows
+                }
+              }
+              addNotification({ title: 'Import Complete', message: `Imported ${created} assets from CSV.`, type: 'success' });
+              if (typeof window !== 'undefined') {
+                window.location.reload();
+              }
+            } catch (e: any) {
+              addNotification({ title: 'Import Failed', message: e?.message || 'Could not import CSV.', type: 'error' });
+            } finally {
+              setIsImporting(false);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+          }} />
+          <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 text-sm font-medium text-secondary bg-lightpurple rounded-full shadow-button hover:opacity-90 disabled:opacity-50" disabled={isImporting}>
+            <UploadIcon className="w-4 h-4 mr-2" /> {isImporting ? 'Importing...' : 'Import'}
           </button>
-          <button onClick={() => { addNotification({ title: 'Import', message: 'Please select a CSV file to import asset data', type: 'info' }); }} className="px-4 py-2 text-sm font-medium text-secondary bg-lightpurple rounded-full shadow-button hover:opacity-90">
-            <UploadIcon className="w-4 h-4 mr-2" /> Import
+          <button onClick={downloadSampleCsv} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-full shadow-button hover:opacity-90">
+            Sample CSV
           </button>
         </div>
       </div>

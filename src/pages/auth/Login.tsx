@@ -100,13 +100,7 @@ const Login: React.FC = () => {
               <button type="submit" className="button-primary block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center" disabled={isLoading}>{isLoading ? 'Logging in...' : 'Log in'}</button>
             </form>
             <hr className="my-8" />
-            {/* <p className="mt-4">
-              <a className="text-sm font-medium text-secondary hover:underline" href="#" onClick={e => { e.preventDefault(); setEmail('admin@turnkey.com'); setPassword('password'); }}>Demo Admin Login</a>
-            </p>
-            <p className="mt-1">
-              <a className="text-sm font-medium text-secondary hover:underline" href="#" onClick={e => { e.preventDefault(); setEmail('user@turnkey.com'); setPassword('password'); }}>Demo User Login</a>
-            </p> */}
-          </div>
+            </div>
         </div>
       </div>
     </div>
