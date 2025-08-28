@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon, TrashIcon, EditIcon } from 'lucide-react';
-import { issueService, assetService, userService, commentService, notificationService } from '../../services/database';
-import { Issue, Asset, User, IssueComment } from '../../lib/supabase';
+import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon, TrashIcon, EditIcon, DownloadIcon } from 'lucide-react';
+import Logo from '../../assets/logo.png';
+import { issueService, assetService, userService, commentService, notificationService, departmentService } from '../../services/database';
+import { Issue, Asset, User, IssueComment, Department } from '../../lib/supabase';
 
 // Static data for dropdowns
 const issueStatuses = ['Open', 'In Progress', 'Pending User Action', 'Pending Parts', 'Resolved', 'Closed'];
@@ -22,6 +23,7 @@ const IssueManagement: React.FC = () => {
   const [filteredIssues, setFilteredIssues] = useState<Issue[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -36,22 +38,26 @@ const IssueManagement: React.FC = () => {
   const [editingComment, setEditingComment] = useState<IssueComment | null>(null);
   const [editCommentContent, setEditCommentContent] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [issueExporting, setIssueExporting] = useState(false);
+  const [issueExportFormat, setIssueExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
 
   useEffect(() => {
     // Fetch issues, assets, and users
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [issuesData, assetsData, usersData] = await Promise.all([
+        const [issuesData, assetsData, usersData, departmentsData] = await Promise.all([
           issueService.getAll(),
           assetService.getAll(),
-          userService.getAll()
+          userService.getAll(),
+          departmentService.getAll()
         ]);
         
         setIssues(issuesData);
         setFilteredIssues(issuesData);
         setAssets(assetsData);
         setUsers(usersData);
+        setDepartments(departmentsData);
       } catch (error) {
         console.error('Error fetching data:', error);
         addNotification({
@@ -490,44 +496,95 @@ const IssueManagement: React.FC = () => {
           <p className="mt-2 text-gray-700 dark:text-gray-300">View, update, and manage all reported issues.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={async () => {
-            try {
-              const all = await issueService.getAll();
-              const headers = ['title','status','priority','category','reported_by','assigned_to','asset_id','department_id','created_at','updated_at'];
-              const csvRows: string[] = [];
-              csvRows.push(headers.join(','));
-              for (const i of all) {
-                const row = [
-                  i.title,
-                  i.status,
-                  i.priority,
-                  (i as any).category || '',
-                  i.reported_by || '',
-                  i.assigned_to || '',
-                  i.asset_id || '',
-                  i.department_id || '',
-                  i.created_at || '',
-                  i.updated_at || ''
-                ].map(v => {
-                  const s = String(v ?? '');
-                  return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
-                }).join(',');
-                csvRows.push(row);
-              }
-              const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.setAttribute('download', `issues_export_${Date.now()}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(url);
-              addNotification({ title: 'Export Complete', message: 'Issues exported successfully.', type: 'success' });
-            } catch (e: any) {
-              addNotification({ title: 'Export Failed', message: e?.message || 'Could not export issues.', type: 'error' });
-            }
-          }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90">Export Report</button>
+          <div className="flex items-center gap-2">
+            <select value={issueExportFormat} onChange={e => setIssueExportFormat(e.target.value as any)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl">
+              <option value="csv">CSV</option>
+              <option value="excel">Excel (.xls)</option>
+              <option value="json">JSON</option>
+              <option value="txt">Text (.txt)</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <button type="button" onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (issueExporting) return;
+              setIssueExporting(true);
+              try {
+                const data = filteredIssues && filteredIssues.length ? filteredIssues : issues;
+                if (!data.length) { addNotification({ title: 'No Data', message: 'No issues match the current filters.', type: 'warning' }); setIssueExporting(false); return; }
+                const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString() : '';
+                const assetName = (id?: string|null) => { if (!id) return ''; const a = assets.find(a => a.id === id); return a?.name || ''; };
+                const deptName = (id?: string|null) => { if (!id) return ''; const d = departments.find(d => d.id === id); return d?.name || ''; };
+                const userName = (id?: string|null) => { if (!id) return ''; const u = users.find(u => u.id === id); return u?.name || ''; };
+                if (issueExportFormat === 'csv') {
+                  const headers = ['title','status','priority','category','reported_by','assigned_to','asset','department','created_at','updated_at'];
+                  const csvRows: string[] = [];
+                  csvRows.push(headers.join(','));
+                  for (const i of data) {
+                    const row = [i.title,i.status,i.priority,(i as any).category || '',userName(i.reported_by),userName(i.assigned_to || undefined),assetName(i.asset_id || undefined),deptName(i.department_id || undefined),fmtDate(i.created_at),fmtDate(i.updated_at)]
+                      .map(v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',');
+                    csvRows.push(row);
+                  }
+                  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a'); link.href = url; link.setAttribute('download', `issues_export_${Date.now()}.csv`);
+                  link.style.display='none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); setTimeout(()=>URL.revokeObjectURL(url),0);
+                } else if (issueExportFormat === 'json') {
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a'); link.href = url; link.setAttribute('download', `issues_export_${Date.now()}.json`);
+                  link.style.display='none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); setTimeout(()=>URL.revokeObjectURL(url),0);
+                } else if (issueExportFormat === 'excel') {
+                  const buildHtmlTable = (items: any[]) => {
+                    const headers = ['title','status','priority','category','reported_by','assigned_to','asset','department','created_at','updated_at'];
+                    const escapeHtml = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    const thead = `<thead><tr>${headers.map(h => `<th style=\"text-align:left;border:1px solid #ccc;padding:6px;\">${h}</th>`).join('')}</tr></thead>`;
+                    const tbody = `<tbody>${items.map(i => `<tr>${[i.title,i.status,i.priority,(i as any).category || '',userName(i.reported_by),userName(i.assigned_to || undefined),assetName(i.asset_id || undefined),deptName(i.department_id || undefined),fmtDate(i.created_at),fmtDate(i.updated_at)].map(v => `<td style=\"border:1px solid #ccc;padding:6px;\">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+                    return `<table style=\"border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;\">${thead}${tbody}</table>`;
+                  };
+                  const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\" /></head><body>${buildHtmlTable(data)}</body></html>`;
+                  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a'); link.href = url; link.setAttribute('download', `issues_export_${Date.now()}.xls`);
+                  link.style.display='none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); setTimeout(()=>URL.revokeObjectURL(url),0);
+                } else if (issueExportFormat === 'pdf') {
+                  const ensureJsPdf = () => new Promise<void>((resolve, reject) => { if ((window as any).jspdf?.jsPDF) return resolve(); const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'; s.async=true; s.onload=()=>resolve(); s.onerror=()=>reject(new Error('Failed to load jsPDF')); document.head.appendChild(s); });
+                  await ensureJsPdf(); const { jsPDF } = (window as any).jspdf;
+                  const format = data.length > 25 ? 'A3' : 'A4'; const doc = new jsPDF({ orientation:'landscape', unit:'pt', format });
+                  const pageWidth = doc.internal.pageSize.getWidth(); const pageHeight = doc.internal.pageSize.getHeight(); const margin = 36; let y = margin;
+                  const logoDataUrl: string = await new Promise(resolve => { try { const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>{ try{ const c=document.createElement('canvas'); c.width=img.width; c.height=img.height; const ctx=c.getContext('2d'); if(ctx){ ctx.drawImage(img,0,0); resolve(c.toDataURL('image/png')); } else { resolve(''); } } catch { resolve(''); } }; img.onerror=()=>resolve(''); img.src=(Logo as unknown as string); } catch { resolve(''); } });
+                  if (logoDataUrl) { try { doc.addImage(logoDataUrl, 'PNG', margin, y, 120, 48); } catch {} }
+                  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+                  const dateStr = new Date().toLocaleString(); doc.text(`Exported: ${dateStr}`, pageWidth - margin - 180, y + 16); y += 56;
+                  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Issues Export', margin, y); y += 14; doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Total issues: ${data.length}`, margin + 120, y); y += 14;
+                  const headers = ['Title','Status','Priority','Category','Reporter','Assigned','Asset','Department','Created','Updated'];
+                  const weights = [20,12,10,12,12,12,10,12,10,10]; const totalWeight = weights.reduce((a,b)=>a+b,0); const availableWidth = pageWidth - margin*2; const colWidths = weights.map(w => Math.floor((w/totalWeight)*availableWidth));
+                  const baseLineHeight=12; const cellPadding=6; const measureRowHeight=(cells: string[])=>{ let maxLines=1; for(let i=0;i<cells.length;i++){ const maxW=colWidths[i]-cellPadding; const lines=doc.splitTextToSize(String(cells[i]??''), maxW) as string[]; if(lines.length>maxLines) maxLines=lines.length; } return Math.max(18, maxLines*baseLineHeight+8); };
+                  const drawRow=(cells: string[], isHeader=false)=>{ let x=margin; doc.setFont('helvetica', isHeader?'bold':'normal'); doc.setFontSize(isHeader?10:9); const rowH=measureRowHeight(cells); for(let i=0;i<cells.length;i++){ const lines=doc.splitTextToSize(String(cells[i]??''), colWidths[i]-cellPadding) as string[]; doc.text(lines, x+3, y+12, { baseline:'alphabetic' }); doc.rect(x, y, colWidths[i], rowH); x+=colWidths[i]; } y+=rowH; };
+                  const headerH = measureRowHeight(headers); if (y + headerH > pageHeight - margin) { doc.addPage(); y = margin; }
+                  drawRow(headers, true);
+                  const getName = (id?: string|null) => { const u = users.find(u=>u.id===id); return u?.name || ''; };
+                  for (const i of data) {
+                    const cells = [i.title, i.status, i.priority, (i as any).category || '', getName(i.reported_by), getName(i.assigned_to || undefined), assetName(i.asset_id || undefined), deptName(i.department_id || undefined), fmtDate(i.created_at), fmtDate(i.updated_at)];
+                    const nextH = measureRowHeight(cells); if (y + nextH > pageHeight - margin) { doc.addPage(); y = margin; drawRow(headers, true); }
+                    drawRow(cells);
+                  }
+                  const fname = `Issues_${new Date().toISOString().slice(0,10)}.pdf`; doc.save(fname);
+                } else {
+                  const lines = data.map(i => `${i.title}\t${i.status}\t${i.priority}\t${i.asset_id || ''}`);
+                  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a'); link.href = url; link.setAttribute('download', `issues_export_${Date.now()}.txt`);
+                  link.style.display='none'; document.body.appendChild(link); link.click(); document.body.removeChild(link); setTimeout(()=>URL.revokeObjectURL(url),0);
+                }
+                addNotification({ title: 'Export Complete', message: 'Issues exported successfully.', type: 'success' });
+              } catch (e: any) {
+                addNotification({ title: 'Export Failed', message: e?.message || 'Could not export issues.', type: 'error' });
+              } finally { setIssueExporting(false); }
+            }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90 disabled:opacity-50" disabled={issueExporting}>
+              <DownloadIcon className="w-4 h-4 mr-2" /> {issueExporting ? 'Exporting...' : 'Export'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

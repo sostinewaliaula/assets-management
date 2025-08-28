@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon, XCircleIcon } from 'lucide-react';
+import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon, XCircleIcon, DownloadIcon, UploadIcon } from 'lucide-react';
+import Logo from '../../assets/logo.png';
 import { User } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 import { userService } from '../../services/database';
@@ -22,6 +23,9 @@ const UserManagement: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
+  const importInputRef = React.useRef<HTMLInputElement | null>(null);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -303,6 +307,108 @@ const UserManagement: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowAddUserModal(true)} className="button-primary flex items-center">
             <PlusIcon className="w-4 h-4 mr-2" /> Add New User
+          </button>
+          <div className="flex items-center gap-2">
+            <select value={exportFormat} onChange={e => setExportFormat(e.target.value as any)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl">
+              <option value="csv">CSV</option>
+              <option value="excel">Excel (.xls)</option>
+              <option value="json">JSON</option>
+              <option value="txt">Text (.txt)</option>
+              <option value="pdf">PDF</option>
+            </select>
+            <button onClick={async () => {
+              if (exporting) return; setExporting(true);
+              try {
+                const data = filteredUsers;
+                if (!data.length) { addNotification({ title: 'No Data', message: 'No users match the current filters.', type: 'warning' }); setExporting(false); return; }
+                const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString() : '';
+                const deptName = (id?: string | null) => { if (!id) return ''; const dept = departments.find(d => d.id === id); return dept?.name || id; };
+                if (exportFormat === 'csv') {
+                  const headers = ['name','email','role','department','position','phone','created_at'];
+                  const rows: string[] = [headers.join(',')];
+                  for (const u of data) {
+                    const row = [u.name,u.email,u.role,deptName(u.department_id),u.position || '',u.phone || '',fmtDate(u.created_at)]
+                      .map(v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',');
+                    rows.push(row);
+                  }
+                  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.setAttribute('download', `users_export_${Date.now()}.csv`); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                } else if (exportFormat === 'json') {
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.setAttribute('download', `users_export_${Date.now()}.json`); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                } else if (exportFormat === 'excel') {
+                  const buildHtmlTable = (items: any[]) => {
+                    const headers = ['name','email','role','department','position','phone','created_at'];
+                    const escapeHtml = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    const thead = `<thead><tr>${headers.map(h => `<th style=\"text-align:left;border:1px solid #ccc;padding:6px;\">${h}</th>`).join('')}</tr></thead>`;
+                    const tbody = `<tbody>${items.map(u => `<tr>${[u.name, u.email, u.role, deptName((u as any).department_id), u.position || '', u.phone || '', fmtDate(u.created_at)].map(v => `<td style=\"border:1px solid #ccc;padding:6px;\">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+                    return `<table style=\"border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;\">${thead}${tbody}</table>`;
+                  };
+                  const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\" /></head><body>${buildHtmlTable(data)}</body></html>`;
+                  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.setAttribute('download', `users_export_${Date.now()}.xls`); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                } else if (exportFormat === 'pdf') {
+                  const ensureJsPdf = () => new Promise<void>((resolve, reject) => {
+                    if ((window as any).jspdf?.jsPDF) return resolve();
+                    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'; s.async = true; s.onload = () => resolve(); s.onerror = () => reject(new Error('Failed to load jsPDF')); document.head.appendChild(s);
+                  });
+                  await ensureJsPdf(); const { jsPDF } = (window as any).jspdf;
+                  const format = data.length > 25 ? 'A3' : 'A4';
+                  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format });
+                  const pageWidth = doc.internal.pageSize.getWidth(); const pageHeight = doc.internal.pageSize.getHeight(); const margin = 36; let y = margin;
+                  // Logo like assets
+                  const logoDataUrl: string = await new Promise(resolve => {
+                    try { const img = new Image(); img.crossOrigin = 'anonymous'; img.onload = () => { try { const c=document.createElement('canvas'); c.width=img.width; c.height=img.height; const ctx=c.getContext('2d'); if (ctx){ ctx.drawImage(img,0,0); resolve(c.toDataURL('image/png')); } else { resolve(''); } } catch { resolve(''); } }; img.onerror = () => resolve(''); img.src = (Logo as unknown as string); } catch { resolve(''); }
+                  });
+                  if (logoDataUrl) { try { doc.addImage(logoDataUrl, 'PNG', margin, y, 120, 48); } catch {} }
+                  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+                  const dateStr = new Date().toLocaleString(); doc.text(`Exported: ${dateStr}`, pageWidth - margin - 180, y + 16); y += 56;
+                  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.text('Users Export', margin, y); y += 14; doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Total users: ${data.length}`, margin + 120, y); y += 14;
+                  const headers = ['Name','Email','Role','Department','Position','Phone','Created'];
+                  const weights = [18,24,10,12,12,12,12]; const totalWeight = weights.reduce((a,b)=>a+b,0); const availableWidth = pageWidth - margin*2; const colWidths = weights.map(w => Math.floor((w/totalWeight)*availableWidth));
+                  const baseLineHeight = 12; const cellPadding = 6; const measureRowHeight = (cells: string[]) => { let maxLines=1; for (let i=0;i<cells.length;i++){ const maxW = colWidths[i]-cellPadding; const lines = doc.splitTextToSize(String(cells[i]??''), maxW) as string[]; if (lines.length>maxLines) maxLines=lines.length; } return Math.max(18, maxLines*baseLineHeight+8); };
+                  const drawRow = (cells: string[], isHeader=false) => { let x=margin; doc.setFont('helvetica', isHeader?'bold':'normal'); doc.setFontSize(isHeader?10:9); const rowH = measureRowHeight(cells); for (let i=0;i<cells.length;i++){ const lines = doc.splitTextToSize(String(cells[i]??''), colWidths[i]-cellPadding) as string[]; doc.text(lines, x+3, y+12, { baseline: 'alphabetic' }); doc.rect(x, y, colWidths[i], rowH); x+=colWidths[i]; } y+=rowH; };
+                  const headerH = measureRowHeight(headers); if (y + headerH > pageHeight - margin) { doc.addPage(); y = margin; }
+                  drawRow(headers, true);
+                  for (const u of data) { const cells = [u.name, u.email, u.role, deptName((u as any).department_id), u.position || '', u.phone || '', fmtDate(u.created_at)]; const nextH = measureRowHeight(cells); if (y + nextH > pageHeight - margin) { doc.addPage(); y = margin; drawRow(headers, true); } drawRow(cells); }
+                  const fname = `Users_${new Date().toISOString().slice(0,10)}.pdf`; doc.save(fname);
+                } else {
+                  const lines = data.map(u => `${u.name}\t${u.email}\t${u.role}`);
+                  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.setAttribute('download', `users_export_${Date.now()}.txt`); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                }
+                addNotification({ title: 'Export Complete', message: 'Users exported successfully.', type: 'success' });
+              } catch (e: any) { addNotification({ title: 'Export Failed', message: e?.message || 'Could not export users.', type: 'error' }); }
+              finally { setExporting(false); }
+            }} className="px-4 py-2 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90 disabled:opacity-50" disabled={exporting}>
+              <DownloadIcon className="w-4 h-4 mr-2" /> {exporting ? 'Exporting...' : 'Export'}
+            </button>
+          </div>
+          <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={async (e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            try {
+              const text = await file.text();
+              const lines = text.split(/\r?\n/).filter(l => l.trim());
+              if (lines.length <= 1) { addNotification({ title: 'Import Failed', message: 'CSV appears empty.', type: 'error' }); return; }
+              const header = lines[0].split(',').map(h => h.trim().replace(/^\"|\"$/g, ''));
+              const idx = (k: string) => header.indexOf(k);
+              const nameIdx = idx('name'); const emailIdx = idx('email'); const roleIdx = idx('role');
+              if ([nameIdx,emailIdx,roleIdx].some(i => i === -1)) { addNotification({ title: 'Import Failed', message: 'CSV missing required headers: name,email,role', type: 'error' }); return; }
+              const parse = (line: string) => { const res: string[] = []; let cur=''; let q=false; for (let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){ cur+='"'; i++; } else { q=!q; } } else if(ch===',' && !q){ res.push(cur); cur=''; } else { cur+=ch; } } res.push(cur); return res.map(s=>s.trim()); };
+              const rows = lines.slice(1).map(parse);
+              let created = 0;
+              for (const r of rows) {
+                const get = (i: number) => r[i] ? r[i].replace(/^\"|\"$/g, '') : '';
+                const payload = { name: get(nameIdx), email: get(emailIdx), role: get(roleIdx) as any } as any;
+                if (!payload.name || !payload.email || !payload.role) continue;
+                try { await userService.create({ ...payload, department_id: null, position: '', phone: '' } as any); created++; } catch {}
+              }
+              addNotification({ title: 'Import Complete', message: `Imported ${created} users from CSV.`, type: 'success' });
+            } catch (e: any) { addNotification({ title: 'Import Failed', message: e?.message || 'Could not import CSV.', type: 'error' }); }
+            finally { if (importInputRef.current) importInputRef.current.value=''; }
+          }} />
+          <button onClick={() => importInputRef.current?.click()} className="px-4 py-2 text-sm font-medium text-secondary bg-lightpurple rounded-full shadow-button hover:opacity-90">
+            <UploadIcon className="w-4 h-4 mr-2" /> Import
           </button>
         </div>
       </div>

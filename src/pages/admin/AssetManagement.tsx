@@ -150,12 +150,17 @@ const AssetManagement: React.FC = () => {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      const all = await assetService.getAll();
+      const data = filteredAssets;
+      if (!data || data.length === 0) {
+        addNotification({ title: 'No Data', message: 'No assets match the current filters to export.', type: 'warning' });
+        setIsExporting(false);
+        return;
+      }
       if (exportFormat === 'csv') {
         const headers = ['name','type','serial_number','status','location','manufacturer','department_id','assigned_to','purchase_date','warranty_expiry'];
         const csvRows: string[] = [];
         csvRows.push(headers.join(','));
-        for (const a of all) {
+        for (const a of data) {
           const row = [
             a.name,
             a.type,
@@ -183,7 +188,7 @@ const AssetManagement: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else if (exportFormat === 'json') {
-        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json;charset=utf-8;' });
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -193,7 +198,7 @@ const AssetManagement: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else if (exportFormat === 'txt') {
-        const lines = all.map(a => `${a.name}\t${a.type}\t${a.serial_number}\t${a.status}\t${a.location || ''}`);
+        const lines = data.map(a => `${a.name}\t${a.type}\t${a.serial_number}\t${a.status}\t${a.location || ''}`);
         const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -204,7 +209,7 @@ const AssetManagement: React.FC = () => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       } else if (exportFormat === 'excel') {
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>${buildHtmlTable(all)}</body></html>`;
+        const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body>${buildHtmlTable(data)}</body></html>`;
         const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -228,7 +233,7 @@ const AssetManagement: React.FC = () => {
         await ensureJsPdf();
         const { jsPDF } = (window as any).jspdf;
         // Choose larger page if many rows
-        const format = all.length > 25 ? 'A3' : 'A4';
+        const format = data.length > 25 ? 'A3' : 'A4';
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -273,7 +278,7 @@ const AssetManagement: React.FC = () => {
         doc.text('Assets Export', margin, y);
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
-        doc.text(`Total assets: ${all.length}`, margin + 140, y);
+        doc.text(`Total assets: ${data.length}`, margin + 140, y);
         y += 14;
         // Table with dynamic column sizing
         const headers = ['Name','Type','Serial','Status','Location','Manufacturer','Dept','Assigned To','Purchase','Warranty'];
@@ -326,7 +331,7 @@ const AssetManagement: React.FC = () => {
         // lookup helpers for names
         const deptMap = new Map<string, string>(departments.map(d => [d.id, d.name]));
         const userMap = new Map<string, string>(users.map(u => [u.id, u.name]));
-        for (const a of all) {
+        for (const a of data) {
           const cells = [
             a.name,
             a.type,
