@@ -5,6 +5,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { supabase } from '../../lib/supabase';
 import { XCircleIcon } from 'lucide-react';
+import { notificationService, userService, departmentService } from '../../services/database';
 
 const UserIssueDetail: React.FC = () => {
   const { issueId } = useParams();
@@ -69,6 +70,39 @@ const UserIssueDetail: React.FC = () => {
       if (error) throw error;
       setIssue(data);
       addNotification({ title: 'Status Updated', message: `Status changed to ${newStatus}`, type: 'success' });
+
+      // Notify required parties (reporter + admins/IT officers)
+      try {
+        const targetUserIds: string[] = [];
+        if (data.reported_by && data.reported_by !== user?.id) targetUserIds.push(data.reported_by);
+
+        // Get admins
+        const admins = await userService.getByRoles(['admin']);
+        targetUserIds.push(...admins.map(a => a.id));
+
+        // Get IT department officers
+        const allDepartments = await departmentService.getAll();
+        const itDepartments = allDepartments.filter(d => (d.name || '').toLowerCase().includes('it'));
+        if (itDepartments.length > 0) {
+          const itDeptIds = new Set(itDepartments.map(d => d.id));
+          const officers = await userService.getByRoles(['department_officer']);
+          const itOfficers = officers.filter(o => o.department_id && itDeptIds.has(o.department_id));
+          targetUserIds.push(...itOfficers.map(o => o.id));
+        }
+
+        // De-duplicate and remove current actor
+        const uniqueTargets = Array.from(new Set(targetUserIds)).filter(id => id && id !== user?.id);
+        if (uniqueTargets.length > 0) {
+          await notificationService.notifyMultipleUsers(
+            uniqueTargets,
+            'Issue Status Updated',
+            `${user?.name || 'An assignee'} updated status of "${data.title}" to ${newStatus}.`,
+            'info'
+          );
+        }
+      } catch (notifyErr) {
+        console.warn('Notification dispatch failed:', notifyErr);
+      }
     } catch (e: any) {
       addNotification({ title: 'Error', message: e?.message || 'Failed to update status', type: 'error' });
     } finally {
@@ -91,6 +125,38 @@ const UserIssueDetail: React.FC = () => {
       setComments(prev => [...prev, data]);
       setNewComment('');
       addNotification({ title: 'Comment Added', message: 'Your comment was posted.', type: 'success' });
+
+      // Notify required parties (reporter + admins/IT officers)
+      try {
+        const targetUserIds: string[] = [];
+        if (issue.reported_by && issue.reported_by !== user?.id) targetUserIds.push(issue.reported_by);
+
+        // Get admins
+        const admins = await userService.getByRoles(['admin']);
+        targetUserIds.push(...admins.map(a => a.id));
+
+        // Get IT department officers
+        const allDepartments = await departmentService.getAll();
+        const itDepartments = allDepartments.filter(d => (d.name || '').toLowerCase().includes('it'));
+        if (itDepartments.length > 0) {
+          const itDeptIds = new Set(itDepartments.map(d => d.id));
+          const officers = await userService.getByRoles(['department_officer']);
+          const itOfficers = officers.filter(o => o.department_id && itDeptIds.has(o.department_id));
+          targetUserIds.push(...itOfficers.map(o => o.id));
+        }
+
+        const uniqueTargets = Array.from(new Set(targetUserIds)).filter(id => id && id !== user?.id);
+        if (uniqueTargets.length > 0) {
+          await notificationService.notifyMultipleUsers(
+            uniqueTargets,
+            'New Issue Comment',
+            `${user?.name || 'An assignee'} commented on "${issue.title}": ${content}`,
+            'info'
+          );
+        }
+      } catch (notifyErr) {
+        console.warn('Notification dispatch failed:', notifyErr);
+      }
     } catch (e: any) {
       addNotification({ title: 'Error', message: e?.message || 'Failed to add comment', type: 'error' });
     }

@@ -5,6 +5,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, PlusIcon, XCircleIcon, InfoIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSupabase } from '../../hooks/useSupabase';
+import { notificationService, userService, departmentService } from '../../services/database';
 import ConnectionStatus from '../../components/ui/ConnectionStatus';
 
 const UserIssues: React.FC = () => {
@@ -89,7 +90,7 @@ const UserIssues: React.FC = () => {
   // Extract unique priorities from issues
   const issuePriorities = ['All', 'Low', 'Medium', 'High', 'Critical'];
   const canManageIssue = (issue: any) => issue.assigned_to === user?.id;
-  const handleSubmitIssue = e => {
+  const handleSubmitIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     // Find the selected asset
     const selectedAsset = assets.find(asset => asset.id === newIssue.assetId);
@@ -131,29 +132,68 @@ const UserIssues: React.FC = () => {
         createdAt: new Date().toISOString()
       }]
     };
-    // Add the new issue to the list
-    setIssues([newIssueObj, ...issues]);
-    // Reset the form
-    setNewIssue({
-      assetId: '',
-      title: '',
-      description: '',
-      type: 'Hardware Failure',
-      priority: 'Medium'
-    });
-    // Close the form
-    setShowNewIssueForm(false);
-    // Show a notification
-    addNotification({
-      title: 'Issue Created',
-      message: `New issue created for ${selectedAsset.name}`,
-      type: 'success'
-    });
-    addToast({
-      title: 'Issue Created',
-      message: `New issue created for ${selectedAsset.name}`,
-      type: 'success'
-    });
+    try {
+      // Persist to Supabase
+      const { data, error } = await query(async () => {
+        return await supabase
+          .from('issues')
+          .insert({
+            title: newIssue.title,
+            description: newIssue.description,
+            status: 'Open',
+            priority: newIssue.priority,
+            category: newIssue.type,
+            reported_by: user!.id,
+            assigned_to: null,
+            asset_id: selectedAsset.id,
+            department_id: selectedAsset.department_id,
+            estimated_resolution_date: null,
+            actual_resolution_date: null
+          })
+          .select()
+          .single();
+      });
+      if (error) throw error;
+
+      // Add the new issue to the list (from DB)
+      setIssues([data, ...issues]);
+      // Reset and close
+      setNewIssue({ assetId: '', title: '', description: '', type: 'Hardware Failure', priority: 'Medium' });
+      setShowNewIssueForm(false);
+      addNotification({ title: 'Issue Created', message: `New issue created for ${selectedAsset.name}` , type: 'success' });
+      addToast({ title: 'Issue Created', message: `New issue created for ${selectedAsset.name}`, type: 'success' });
+
+      // Dispatch backend notifications and emails
+      try {
+        await notificationService.notifyUser(
+          user!.id,
+          'Issue Reported',
+          `Your issue "${newIssue.title}" has been created and is now Open.`,
+          'info'
+        );
+        const recipients = await userService.getByRoles(['admin', 'department_officer']);
+        const departments = await departmentService.getAll();
+        const itDeptIds = new Set(
+          departments.filter(d => (d.name || '').toLowerCase().includes('it')).map(d => d.id)
+        );
+        const targetUsers = recipients.filter(r => r.role === 'admin' || (r.role === 'department_officer' && r.department_id && itDeptIds.has(r.department_id)));
+        await Promise.all(
+          targetUsers
+            .filter(u => u.id !== user!.id)
+            .map(u => notificationService.notifyUser(
+              u.id,
+              'New Issue Reported',
+              `${user!.name} reported an issue: "${newIssue.title}"`,
+              'warning'
+            ))
+        );
+      } catch (notifyErr) {
+        console.warn('Failed to send creation notifications', notifyErr);
+      }
+    } catch (err) {
+      addNotification({ title: 'Error', message: 'Failed to create issue', type: 'error' });
+      addToast({ title: 'Error', message: 'Failed to create issue', type: 'error' });
+    }
   };
   const getStatusColor = status => {
     switch (status) {

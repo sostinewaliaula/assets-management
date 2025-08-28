@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon, WifiIcon, WifiOffIcon } from 'lucide-react';
-import { assetService, userService, departmentService, issueService } from '../../services/database';
+import { assetService, userService, departmentService, issueService, notificationService } from '../../services/database';
 import { Asset, User, Department, Issue, supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 
@@ -184,6 +184,37 @@ const AssetDetails: React.FC = () => {
           message: `New issue created for ${asset.name}`,
           type: 'success'
         });
+
+        // Dispatch backend notifications and emails
+        try {
+          // Notify reporter
+          await notificationService.notifyUser(
+            user.id,
+            'Issue Reported',
+            `Your issue "${newIssue.title}" has been created and is now Open.`,
+            'info'
+          );
+
+          // Notify admins and IT officers only
+          const recipients = await userService.getByRoles(['admin', 'department_officer']);
+          const departments = await departmentService.getAll();
+          const itDeptIds = new Set(
+            departments.filter(d => (d.name || '').toLowerCase().includes('it')).map(d => d.id)
+          );
+          const targetUsers = recipients.filter(r => r.role === 'admin' || (r.role === 'department_officer' && r.department_id && itDeptIds.has(r.department_id)));
+          await Promise.all(
+            targetUsers
+              .filter(u => u.id !== user.id)
+              .map(u => notificationService.notifyUser(
+                u.id,
+                'New Issue Reported',
+                `${user.name} reported an issue: "${newIssue.title}"`,
+                'warning'
+              ))
+          );
+        } catch (notifyErr) {
+          console.warn('Failed to send creation notifications', notifyErr);
+        }
         
         // Reset form and close modal
         setNewIssue({
