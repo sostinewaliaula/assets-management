@@ -376,7 +376,7 @@ const UserAssets: React.FC = () => {
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <h2 className="mb-4 text-xl font-bold text-primary">Quick Actions</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Link to="/my-issues" className="button-primary flex items-center justify-center"> <AlertCircleIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">View My Issues</span> </Link>
+          <Link to="/user/issues" className="button-primary flex items-center justify-center"> <AlertCircleIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">View My Issues</span> </Link>
           <button 
             onClick={() => setShowRequestForm(true)} 
             className="button-primary flex items-center justify-center"
