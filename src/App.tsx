@@ -25,6 +25,7 @@ import UserIssues from './pages/user/UserIssues';
 import AssetDetails from './pages/shared/AssetDetails';
 import NotificationsPage from './pages/shared/NotificationsPage';
 import Settings from './pages/shared/Settings';
+import UserIssueDetail from './pages/user/UserIssueDetail';
 import Profile from './pages/shared/Profile';
 import { supabase } from './lib/supabase';
 import { useSupabase } from './hooks/useSupabase';
@@ -133,6 +134,7 @@ function App() {
                   <Route path="dashboard" element={<UserDashboard />} />
                   <Route path="assets" element={<UserAssets />} />
                   <Route path="issues" element={<UserIssues />} />
+                  <Route path="issues/:issueId" element={<UserIssueDetail />} />
                 </Route>
                 <Route path="assets/:assetId" element={<AssetDetails />} />
                 <Route path="shared">

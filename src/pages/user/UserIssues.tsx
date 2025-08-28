@@ -11,9 +11,9 @@ const UserIssues: React.FC = () => {
   const { user } = useAuth();
   const { addNotification, addToast } = useNotifications();
   const { isConnected, isConnecting, lastError, query } = useSupabase();
-  const [assets, setAssets] = useState([]);
-  const [issues, setIssues] = useState([]);
-  const [filteredIssues, setFilteredIssues] = useState([]);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [issues, setIssues] = useState<any[]>([]);
+  const [filteredIssues, setFilteredIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -41,12 +41,12 @@ const UserIssues: React.FC = () => {
         });
         if (assetError) throw assetError;
         setAssets(assetData || []);
-        // Fetch issues reported by the user
+        // Fetch issues reported by or assigned to the user
         const { data: issueData, error: issueError } = await query(async () => {
           return await supabase
             .from('issues')
             .select('*')
-            .eq('reported_by', user.id)
+            .or(`reported_by.eq.${user.id},assigned_to.eq.${user.id}`)
             .order('created_at', { ascending: false });
         });
         if (issueError) throw issueError;
@@ -88,6 +88,7 @@ const UserIssues: React.FC = () => {
   const issueStatuses = ['All', ...new Set(issues.map(issue => issue.status))];
   // Extract unique priorities from issues
   const issuePriorities = ['All', 'Low', 'Medium', 'High', 'Critical'];
+  const canManageIssue = (issue: any) => issue.assigned_to === user?.id;
   const handleSubmitIssue = e => {
     e.preventDefault();
     // Find the selected asset
@@ -323,7 +324,14 @@ const UserIssues: React.FC = () => {
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(issue.priority)}`}>{issue.priority}</span>
                     </td>
                   <td className="px-6 py-4">{new Date(issue.created_at).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">{new Date(issue.updated_at).toLocaleDateString()}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <span>{new Date(issue.updated_at).toLocaleDateString()}</span>
+                      {canManageIssue(issue) && (
+                        <Link to={`/user/issues/${issue.id}`} className="px-2 py-1 text-xs font-medium text-white bg-primary rounded-md hover:bg-primary-dark">Manage</Link>
+                      )}
+                    </div>
+                  </td>
                   </tr>)}
               </tbody>
             </table>

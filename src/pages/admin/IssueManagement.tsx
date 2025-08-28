@@ -32,6 +32,8 @@ const IssueManagement: React.FC = () => {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [newComment, setNewComment] = useState('');
   const [newStatus, setNewStatus] = useState('');
+  const [assignToUserId, setAssignToUserId] = useState<string>('');
+  const [isAssigning, setIsAssigning] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [comments, setComments] = useState<IssueComment[]>([]);
@@ -164,6 +166,15 @@ const IssueManagement: React.FC = () => {
       });
     }
   };
+
+  const userRoleStr = (user?.role || '') as string;
+  const userDeptId = ((user as any)?.department_id || null) as string | null;
+  const isAdmin = userRoleStr === 'admin';
+  const itDeptIds = new Set((departments || [])
+    .filter((d: any) => (d?.name || '').toLowerCase().includes('it'))
+    .map((d: any) => d.id));
+  const isItOfficer = userRoleStr === 'department_officer' && (userDeptId ? itDeptIds.has(userDeptId) : false);
+  const canManageSelectedIssue = !!selectedIssue && (isAdmin || isItOfficer || selectedIssue.assigned_to === user?.id);
 
   const handleAddComment = async () => {
     if (!selectedIssue || !newComment.trim() || !user) {
@@ -801,6 +812,52 @@ const IssueManagement: React.FC = () => {
               </Link>
             </div>
           </div>
+          {/* Assign To (IT only + Admin) */}
+          {(isAdmin || isItOfficer) && (
+            <div className="mt-4">
+              <label className="block mb-2 text-sm font-medium text-gray-700">Assign To (IT Department)</label>
+              <div className="flex items-center space-x-2">
+                <select
+                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={assignToUserId}
+                  onChange={e => setAssignToUserId(e.target.value)}
+                >
+                  <option value="">Select IT User</option>
+                  {(() => {
+                    const itUsers = users.filter(u => u.department_id && itDeptIds.has(u.department_id));
+                    if (itUsers.length === 0) {
+                      return <option value="" disabled>No IT users found</option>;
+                    }
+                    return itUsers.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                    ));
+                  })()}
+                </select>
+                <button
+                  onClick={async () => {
+                    if (!selectedIssue || !assignToUserId) return;
+                    setIsAssigning(true);
+                    try {
+                      const updated = await issueService.update(selectedIssue.id, { assigned_to: assignToUserId } as any);
+                      setIssues(prev => prev.map(i => i.id === updated.id ? updated : i));
+                      setSelectedIssue(updated);
+                      setAssignToUserId('');
+                      addNotification({ title: 'Assigned', message: 'Issue assigned successfully to selected IT user.', type: 'success' });
+                      try {
+                        await notificationService.notifyUser(assignToUserId, 'Issue Assigned', `You have been assigned issue "${updated.title}".`, 'info');
+                      } catch {}
+                    } catch (e: any) {
+                      addNotification({ title: 'Assign Failed', message: e?.message || 'Could not assign issue.', type: 'error' });
+                    } finally { setIsAssigning(false); }
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50"
+                  disabled={isAssigning || !assignToUserId}
+                >
+                  {isAssigning ? 'Assigning...' : 'Assign'}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="mt-6">
             <div className="flex items-center mb-2">
               <UserIcon className="w-4 h-4 mr-2 text-gray-500" />
@@ -815,19 +872,21 @@ const IssueManagement: React.FC = () => {
               </p>
             </div>
           </div>
-          <div className="flex flex-col gap-4 mt-6 md:flex-row">
-            <div className="flex-1">
-              <label className="block mb-2 text-sm font-medium text-gray-700">Update Status</label>
-              <div className="flex space-x-2">
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
-                  {issueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
-                </select>
-                <button onClick={handleUpdateStatus} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed" disabled={isUpdatingStatus || newStatus === selectedIssue.status}>
-                  {isUpdatingStatus ? 'Updating...' : 'Update'}
-                </button>
+          {canManageSelectedIssue && (
+            <div className="flex flex-col gap-4 mt-6 md:flex-row">
+              <div className="flex-1">
+                <label className="block mb-2 text-sm font-medium text-gray-700">Update Status</label>
+                <div className="flex space-x-2">
+                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newStatus} onChange={e => setNewStatus(e.target.value)}>
+                    {issueStatuses.map(status => <option key={status} value={status}>{status}</option>)}
+                  </select>
+                  <button onClick={handleUpdateStatus} className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed" disabled={isUpdatingStatus || newStatus === selectedIssue.status}>
+                    {isUpdatingStatus ? 'Updating...' : 'Update'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
           
           {/* Comments section - real implementation */}
           <div className="mt-6">
@@ -901,31 +960,33 @@ const IssueManagement: React.FC = () => {
                 <p className="text-gray-500 text-sm text-center py-4">No comments yet. Be the first to add one!</p>
               )}
             </div>
-            <div className="mt-4">
-              <label className="block mb-2 text-sm font-medium text-gray-700">Add Comment</label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Type your comment..."
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && newComment.trim()) {
-                      handleAddComment();
-                    }
-                  }}
-                />
-                <button
-                  onClick={handleAddComment}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
-                  disabled={!newComment.trim()}
-                >
-                  <MessageSquareIcon className="w-4 h-4 mr-2" />
-                  Comment
-                </button>
+            {canManageSelectedIssue && (
+              <div className="mt-4">
+                <label className="block mb-2 text-sm font-medium text-gray-700">Add Comment</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Type your comment..."
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newComment.trim()) {
+                        handleAddComment();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                    disabled={!newComment.trim()}
+                  >
+                    <MessageSquareIcon className="w-4 h-4 mr-2" />
+                    Comment
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
         <div className="flex justify-end">
