@@ -310,7 +310,7 @@ const NotificationPreferences: React.FC = () => {
 
       {/* Save Button */}
       <div className="flex justify-between items-center">
-        <button
+        {/* <button
           onClick={testEmailSystem}
           disabled={testing}
           className="button-secondary px-4 py-2 flex items-center"
@@ -326,7 +326,7 @@ const NotificationPreferences: React.FC = () => {
               Test Email System
             </>
           )}
-        </button>
+        </button> */}
         
         <button
           onClick={savePreferences}
@@ -404,7 +404,7 @@ const NotificationPreferences: React.FC = () => {
                 <li>Email notifications are sent based on your preferences</li>
                 <li>Daily/Weekly digests combine multiple notifications into one email</li>
                 <li>You can change these settings at any time</li>
-                <li>Use the "Test Email System" button to verify everything is working</li>
+                {/* <li>Use the "Test Email System" button to verify everything is working</li> */}
               </ul>
             </div>
           </div>

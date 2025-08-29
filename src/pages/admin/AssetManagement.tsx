@@ -842,11 +842,11 @@ const AssetManagement: React.FC = () => {
               <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="XPS 15 9500" value={newAsset.model} onChange={e => setNewAsset({ ...newAsset, model: e.target.value })} />
             </div>
             <div>
-              <label className="block mb-2 text-sm font-medium text-primary">Purchase Price</label>
+              <label className="block mb-2 text-sm font-medium text-primary">Purchase Price (KSh)</label>
               <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="0.00" value={newAsset.purchase_price} onChange={e => setNewAsset({ ...newAsset, purchase_price: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
-              <label className="block mb-2 text-sm font-medium text-primary">Current Value</label>
+              <label className="block mb-2 text-sm font-medium text-primary">Current Value (KSh)</label>
               <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="0.00" value={newAsset.current_value} onChange={e => setNewAsset({ ...newAsset, current_value: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
@@ -949,11 +949,11 @@ const AssetManagement: React.FC = () => {
               <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="XPS 15 9500" value={editingAsset.model} onChange={e => setEditingAsset({ ...editingAsset, model: e.target.value })} />
             </div>
             <div>
-              <label className="block mb-2 text-sm font-medium text-primary">Purchase Price</label>
+              <label className="block mb-2 text-sm font-medium text-primary">Purchase Price (KSh)</label>
               <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="0.00" value={editingAsset.purchase_price} onChange={e => setEditingAsset({ ...editingAsset, purchase_price: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>
-              <label className="block mb-2 text-sm font-medium text-primary">Current Value</label>
+              <label className="block mb-2 text-sm font-medium text-primary">Current Value (KSh)</label>
               <input type="number" step="0.01" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="0.00" value={editingAsset.current_value} onChange={e => setEditingAsset({ ...editingAsset, current_value: parseFloat(e.target.value) || 0 })} />
             </div>
             <div>

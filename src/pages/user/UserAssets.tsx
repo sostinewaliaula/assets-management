@@ -6,6 +6,7 @@ import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Asset, supabase } from '../../lib/supabase';
 import { issueService, assetRequestsService, userService, notificationService, departmentService } from '../../services/database';
+import { formatKES } from '../../utils/formatCurrency';
 
 const UserAssets: React.FC = () => {
   const { user } = useAuth();

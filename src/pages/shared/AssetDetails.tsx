@@ -7,6 +7,7 @@ import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon
 import { assetService, userService, departmentService, issueService, notificationService } from '../../services/database';
 import { Asset, User, Department, Issue, supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
+import { formatKES } from '../../utils/formatCurrency';
 
 const AssetDetails: React.FC = () => {
   const { assetId } = useParams();
