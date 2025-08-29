@@ -356,7 +356,7 @@ const UserDashboard: React.FC = () => {
     <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
       <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-primary">Recent Issues</h2>
-        <Link to="/my-issues" className="button-primary flex items-center text-sm font-medium">
+        <Link to="/user/issues" className="button-primary flex items-center text-sm font-medium">
           View All <ArrowRightIcon className="w-4 h-4 ml-1" />
         </Link>
       </div>

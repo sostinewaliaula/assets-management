@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -34,6 +34,8 @@ const AssetDetails: React.FC = () => {
   const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [qrUrl, setQrUrl] = useState<string>('');
+  const qrRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
@@ -133,6 +135,79 @@ const AssetDetails: React.FC = () => {
     };
     if (isAdmin) fetchDropdowns();
   }, [isAdmin]);
+
+  // Build a real, shareable URL for the QR code based on current origin
+  useEffect(() => {
+    if (asset?.id) {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://turnkey-ams.com';
+      setQrUrl(`${origin}/assets/${asset.id}`);
+    }
+  }, [asset?.id]);
+
+  const handleDownloadQr = async (format: 'png' | 'jpg' = 'png') => {
+    try {
+      const wrapper = qrRef.current;
+      if (!wrapper) return;
+      const svg = wrapper.querySelector('svg');
+      if (!svg) return;
+
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svg);
+      const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      const size = 1024; // high-res export
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      await new Promise(resolve => {
+        img.onload = () => resolve(null);
+        img.src = url;
+      });
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+
+      const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const pngUrl = canvas.toDataURL(mime, 0.92);
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `asset-${asset?.id}-qrcode.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      addToast({ title: 'QR Code Downloaded', message: `Saved as ${format.toUpperCase()}.`, type: 'success' });
+    } catch (e) {
+      addToast({ title: 'Error', message: 'Failed to download QR code.', type: 'error' });
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      if (!qrUrl) return;
+      await navigator.clipboard.writeText(qrUrl);
+      addToast({ title: 'Link Copied', message: 'Asset link copied to clipboard.', type: 'success' });
+    } catch (e) {
+      addToast({ title: 'Error', message: 'Failed to copy link.', type: 'error' });
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share && qrUrl) {
+        await navigator.share({ title: 'Asset Details', text: 'View this asset in Assets Management', url: qrUrl });
+      } else {
+        await handleCopyLink();
+      }
+    } catch (_e) {
+      // user may dismiss share sheet
+    }
+  };
 
   const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -534,10 +609,20 @@ const AssetDetails: React.FC = () => {
         {/* QR Code */}
         <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
           <h2 className="mb-4 text-xl font-bold text-primary">Asset QR Code</h2>
-          <div className="flex flex-col items-center p-4 bg-white rounded-2xl">
-            <QRCode value={`https://turnkey-ams.com/assets/${asset.id}`} size={180} level="H" />
+          <div className="flex flex-col items-center p-4 bg-white rounded-2xl" ref={qrRef}>
+            <QRCode 
+              value={qrUrl || `${typeof window !== 'undefined' ? window.location.origin : 'https://turnkey-ams.com'}/assets/${asset.id}`}
+              size={180}
+              level="H"
+              bgColor="#ffffff"
+              fgColor="#000000"
+            />
             <p className="mt-4 text-sm text-gray-600">Scan to view asset details</p>
-            <button className="px-4 py-2 mt-4 text-sm font-medium text-secondary border border-secondary rounded-full hover:bg-lightpurple">Download QR Code</button>
+            <div className="flex space-x-2 mt-4">
+              <button onClick={handleCopyLink} className="button-primary px-3 py-1 text-xs font-medium">Copy Link</button>
+              <button onClick={() => handleDownloadQr('png')} className="button-primary px-3 py-1 text-xs font-medium">Download PNG</button>
+              <button onClick={handleShare} className="button-primary px-3 py-1 text-xs font-medium">Share</button>
+            </div>
           </div>
         </div>
         {/* Assigned User */}

@@ -19,13 +19,14 @@ const UserIssues: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterPriority, setFilterPriority] = useState('All');
-  const [showNewIssueForm, setShowNewIssueForm] = useState(false);
-  const [newIssue, setNewIssue] = useState({
-    assetId: '',
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
+  const [reportIssue, setReportIssue] = useState({
     title: '',
     description: '',
-    type: 'Hardware Failure',
-    priority: 'Medium'
+    priority: 'Medium',
+    category: 'Other',
+    asset_id: ''
   });
 
   useEffect(() => {
@@ -90,109 +91,91 @@ const UserIssues: React.FC = () => {
   // Extract unique priorities from issues
   const issuePriorities = ['All', 'Low', 'Medium', 'High', 'Critical'];
   const canManageIssue = (issue: any) => issue.assigned_to === user?.id;
-  const handleSubmitIssue = async (e: React.FormEvent) => {
+  const handleReportIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Find the selected asset
-    const selectedAsset = assets.find(asset => asset.id === newIssue.assetId);
-    if (!selectedAsset) {
-      addNotification({
-        title: 'Error',
-        message: 'Please select a valid asset',
-        type: 'error'
-      });
-      addToast({
-        title: 'Error',
-        message: 'Please select a valid asset',
-        type: 'error'
-      });
-      return;
-    }
-    // Create a new issue object
-    const newIssueObj = {
-      id: `I-${Date.now()}`,
-      title: newIssue.title,
-      description: newIssue.description,
-      assetId: selectedAsset.id,
-      assetName: selectedAsset.name,
-      assetImage: selectedAsset.image,
-      status: 'Open',
-      type: newIssue.type,
-      priority: newIssue.priority,
-      createdBy: {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      comments: [{
-        id: `C-${Date.now()}`,
-        text: newIssue.description,
-        createdBy: user.name,
-        createdAt: new Date().toISOString()
-      }]
-    };
+    if (!user?.id) return;
+    if (!reportIssue.title.trim() || !reportIssue.description.trim()) return;
+
+    setIsSubmittingIssue(true);
     try {
-      // Persist to Supabase
-      const { data, error } = await query(async () => {
+      const selectedAsset = assets.find(a => a.id === reportIssue.asset_id);
+      const newIssuePayload = {
+        title: reportIssue.title,
+        description: reportIssue.description,
+        status: 'Open',
+        priority: reportIssue.priority,
+        category: reportIssue.category,
+        reported_by: user.id,
+        assigned_to: null as string | null,
+        asset_id: reportIssue.asset_id || null,
+        department_id: selectedAsset?.department_id || null,
+        estimated_resolution_date: null as string | null,
+        actual_resolution_date: null as string | null
+      };
+
+      const { data: created, error } = await query(async () => {
         return await supabase
           .from('issues')
-          .insert({
-            title: newIssue.title,
-            description: newIssue.description,
-            status: 'Open',
-            priority: newIssue.priority,
-            category: newIssue.type,
-            reported_by: user!.id,
-            assigned_to: null,
-            asset_id: selectedAsset.id,
-            department_id: selectedAsset.department_id,
-            estimated_resolution_date: null,
-            actual_resolution_date: null
-          })
+          .insert(newIssuePayload as any)
           .select()
           .single();
       });
       if (error) throw error;
+      setIssues(prev => [created, ...prev]);
 
-      // Add the new issue to the list (from DB)
-      setIssues([data, ...issues]);
-      // Reset and close
-      setNewIssue({ assetId: '', title: '', description: '', type: 'Hardware Failure', priority: 'Medium' });
-      setShowNewIssueForm(false);
-      addNotification({ title: 'Issue Created', message: `New issue created for ${selectedAsset.name}` , type: 'success' });
-      addToast({ title: 'Issue Created', message: `New issue created for ${selectedAsset.name}`, type: 'success' });
-
-      // Dispatch backend notifications and emails
       try {
+        await notificationService.create({
+          user_id: user.id,
+          title: 'Issue Reported',
+          message: `Your issue "${reportIssue.title}" has been created and is now Open.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
         await notificationService.notifyUser(
-          user!.id,
+          user.id,
           'Issue Reported',
-          `Your issue "${newIssue.title}" has been created and is now Open.`,
+          `Your issue "${reportIssue.title}" has been created and is now Open.`,
           'info'
         );
-        const recipients = await userService.getByRoles(['admin', 'department_officer']);
-        const departments = await departmentService.getAll();
-        const itDeptIds = new Set(
-          departments.filter(d => (d.name || '').toLowerCase().includes('it')).map(d => d.id)
-        );
-        const targetUsers = recipients.filter(r => r.role === 'admin' || (r.role === 'department_officer' && r.department_id && itDeptIds.has(r.department_id)));
-        await Promise.all(
-          targetUsers
-            .filter(u => u.id !== user!.id)
-            .map(u => notificationService.notifyUser(
-              u.id,
-              'New Issue Reported',
-              `${user!.name} reported an issue: "${newIssue.title}"`,
-              'warning'
-            ))
-        );
-      } catch (notifyErr) {
-        console.warn('Failed to send creation notifications', notifyErr);
+        try {
+          const recipients = await userService.getByRoles(['admin', 'department_officer']);
+          await Promise.all(
+            recipients
+              .filter(u => u.id !== user.id)
+              .map(u => notificationService.notifyUser(
+                u.id,
+                'New Issue Reported',
+                `${user.name} reported an issue: "${reportIssue.title}"`,
+                'warning'
+              ))
+          );
+        } catch (e) {
+          console.warn('Failed to notify admins/managers', e);
+        }
+      } catch (e) {
+        console.warn('Failed to create notifications via RPC', e);
       }
+
+      addNotification({
+        title: 'Issue Created',
+        message: `New issue created${selectedAsset ? ` for ${selectedAsset.name}` : ''}.`,
+        type: 'success'
+      });
+      addToast({
+        title: 'Issue Created',
+        message: 'Your issue has been submitted successfully.',
+        type: 'success'
+      });
+
+      setReportIssue({ title: '', description: '', priority: 'Medium', category: 'Other', asset_id: '' });
+      setShowReportIssueModal(false);
     } catch (err) {
-      addNotification({ title: 'Error', message: 'Failed to create issue', type: 'error' });
-      addToast({ title: 'Error', message: 'Failed to create issue', type: 'error' });
+      console.error('Error creating issue:', err);
+      addNotification({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
+      addToast({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
+    } finally {
+      setIsSubmittingIssue(false);
     }
   };
   const getStatusColor = status => {
@@ -242,7 +225,7 @@ const UserIssues: React.FC = () => {
               <h1 className="text-3xl font-bold text-primary">My Issues</h1>
               <p className="mt-2 text-gray-700 dark:text-gray-300">View and manage your reported issues.</p>
             </div>
-            <button onClick={() => setShowNewIssueForm(true)} className="button-primary flex items-center"><PlusIcon className="w-4 h-4 mr-2" /> Report New Issue</button>
+            <button onClick={() => setShowReportIssueModal(true)} className="button-primary flex items-center"><PlusIcon className="w-4 h-4 mr-2" /> Report New Issue</button>
           </div>
         </div>
         {/* Issue Status Summary */}
@@ -385,63 +368,78 @@ const UserIssues: React.FC = () => {
                 <CheckCircleIcon className="w-16 h-16 text-gray-400" />
               <h3 className="mt-4 text-lg font-medium text-gray-700">No issues reported</h3>
               <p className="mt-2 text-sm text-gray-500">You haven't reported any issues yet</p>
-              <button onClick={() => setShowNewIssueForm(true)} className="button-primary px-4 py-2 mt-4 text-sm font-medium">Report New Issue</button>
+              <button onClick={() => setShowReportIssueModal(true)} className="button-primary px-4 py-2 mt-4 text-sm font-medium">Report New Issue</button>
               </>}
           </div>}
         </div>
-        {/* New Issue Modal remains, update classes to match the new theme. */}
-      {showNewIssueForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-primary">Report New Issue</h3>
-              <button onClick={() => setShowNewIssueForm(false)} className="text-gray-500 hover:text-gray-700">
+        {/* Report Issue Modal */}
+      {showReportIssueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800 bg-lightgreen dark:bg-gray-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircleIcon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold text-primary dark:text-white">Report an Issue</h3>
+              </div>
+              <button onClick={() => setShowReportIssueModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 <XCircleIcon className="w-6 h-6" />
               </button>
             </div>
-            <form onSubmit={handleSubmitIssue}>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Select Asset</label>
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newIssue.assetId} onChange={e => setNewIssue({ ...newIssue, assetId: e.target.value })} required>
-                  <option value="">Select an asset</option>
-                  {assets.map(asset => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
-                </select>
+            <form onSubmit={handleReportIssueSubmit} className="overflow-y-auto max-h-[60vh] p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Title *</label>
+                  <input type="text" className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.title} onChange={e => setReportIssue({ ...reportIssue, title: e.target.value })} required />
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Priority</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.priority} onChange={e => setReportIssue({ ...reportIssue, priority: e.target.value })}>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Issue Title</label>
-                <input type="text" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Brief description of the issue" value={newIssue.title} onChange={e => setNewIssue({ ...newIssue, title: e.target.value })} required />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Category</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.category} onChange={e => setReportIssue({ ...reportIssue, category: e.target.value })}>
+                    <option value="Hardware Failure">Hardware Failure</option>
+                    <option value="Software Issue">Software Issue</option>
+                    <option value="Connectivity Problem">Connectivity Problem</option>
+                    <option value="Upgrade Request">Upgrade Request</option>
+                    <option value="Replacement Request">Replacement Request</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Asset (optional)</label>
+                  <select className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all" value={reportIssue.asset_id} onChange={e => setReportIssue({ ...reportIssue, asset_id: e.target.value })}>
+                    <option value="">No Specific Asset</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Issue Type</label>
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newIssue.type} onChange={e => setNewIssue({ ...newIssue, type: e.target.value })}>
-                  <option value="Hardware Failure">Hardware Failure</option>
-                  <option value="Software Issue">Software Issue</option>
-                  <option value="Connectivity Problem">Connectivity Problem</option>
-                  <option value="Upgrade Request">Upgrade Request</option>
-                  <option value="Replacement Request">Replacement Request</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Other">Other</option>
-                </select>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description *</label>
+                <textarea className="block w-full px-4 py-3 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 transition-all resize-none" rows={5} value={reportIssue.description} onChange={e => setReportIssue({ ...reportIssue, description: e.target.value })} required />
               </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Priority</label>
-                <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newIssue.priority} onChange={e => setNewIssue({ ...newIssue, priority: e.target.value })}>
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-primary">Description</label>
-                <textarea className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={4} placeholder="Detailed description of the issue" value={newIssue.description} onChange={e => setNewIssue({ ...newIssue, description: e.target.value })} required></textarea>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowNewIssueForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
-                <button type="submit" className="button-primary px-4 py-2 text-sm font-medium">Submit Issue</button>
+              <div className="flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-800 pt-4">
+                <button type="button" onClick={() => setShowReportIssueModal(false)} className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmittingIssue} className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSubmittingIssue ? 'Submitting...' : 'Submit Issue'}
+                </button>
               </div>
             </form>
           </div>
-        </div>}
+        </div>
+      )}
       </div>
     </>
   );

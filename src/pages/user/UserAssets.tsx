@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Asset, supabase } from '../../lib/supabase';
-import { issueService, assetRequestsService, userService, notificationService } from '../../services/database';
+import { issueService, assetRequestsService, userService, notificationService, departmentService } from '../../services/database';
 
 const UserAssets: React.FC = () => {
   const { user } = useAuth();
@@ -27,6 +27,7 @@ const UserAssets: React.FC = () => {
     type: 'Hardware Failure',
     priority: 'Medium'
   });
+  const issueFormRef = useRef<HTMLFormElement | null>(null);
   
   // Asset request form state
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -131,13 +132,51 @@ const UserAssets: React.FC = () => {
             reported_by: user.id,
             assigned_to: null,
             asset_id: selectedAsset.id,
-            department_id: selectedAsset.department_id,
+            department_id: selectedAsset.department_id || null,
             estimated_resolution_date: null,
             actual_resolution_date: null
           });
       });
 
       if (error) throw error;
+
+      // Notifications: persist + reporter + admins/department officers (IT dept only)
+      try {
+        // Persist a notification so it appears on the Notifications page
+        await notificationService.create({
+          user_id: user.id,
+          title: 'Issue Reported',
+          message: `Your issue "${newIssue.title}" has been created and is now Open.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+        await notificationService.notifyUser(
+          user.id,
+          'Issue Reported',
+          `Your issue "${newIssue.title}" has been created and is now Open.`,
+          'info'
+        );
+
+        const recipients = await userService.getByRoles(['admin', 'department_officer']);
+        const departments = await departmentService.getAll();
+        const itDeptIds = new Set(
+          departments.filter(d => (d.name || '').toLowerCase().includes('it')).map(d => d.id)
+        );
+        const targetUsers = recipients.filter(r => r.role === 'admin' || (r.role === 'department_officer' && r.department_id && itDeptIds.has(r.department_id)));
+        await Promise.all(
+          targetUsers
+            .filter(u => u.id !== user.id)
+            .map(u => notificationService.notifyUser(
+              u.id,
+              'New Issue Reported',
+              `${user.name} reported an issue: "${newIssue.title}"`,
+              'warning'
+            ))
+        );
+      } catch (notifyErr) {
+        console.warn('Failed to send creation notifications', notifyErr);
+      }
 
       // Reset form and close modal
       setNewIssue({
@@ -151,15 +190,15 @@ const UserAssets: React.FC = () => {
 
       // Show success notification
       addNotification({
-        title: 'Issue Reported',
-        message: `Issue reported for ${selectedAsset.name}`,
+        title: 'Issue Created',
+        message: `New issue created for ${selectedAsset.name}`,
         type: 'success'
       });
-      // addToast({ // This line was removed as per the new_code, as per the new_code.
-      //   title: 'Issue Reported',
-      //   message: `Issue reported for ${selectedAsset.name}`,
-      //   type: 'success'
-      // });
+      addToast({
+        title: 'Issue Created',
+        message: `New issue created for ${selectedAsset.name}`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error reporting issue:', error);
       addNotification({
@@ -167,11 +206,11 @@ const UserAssets: React.FC = () => {
         message: 'Failed to report issue. Please try again.',
         type: 'error'
       });
-      // addToast({ // This line was removed as per the new_code, as per the new_code.
-      //   title: 'Error',
-      //   message: 'Failed to report issue. Please try again.',
-      //   type: 'error'
-      // });
+      addToast({
+        title: 'Error',
+        message: 'Failed to report issue. Please try again.',
+        type: 'error'
+      });
     } finally {
       setIsSubmittingIssue(false);
     }
@@ -463,9 +502,9 @@ const UserAssets: React.FC = () => {
                     <Link to={`/assets/${asset.id}`} className="button-primary px-3 py-1 text-xs font-medium">View Details</Link>
                     <button 
                       onClick={() => openIssueForm(asset)} 
-                      className="px-3 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 rounded-full hover:bg-yellow-200"
+                      className="button-primary flex items-center"
                     >
-                      Report Issue
+                      <AlertCircleIcon className="w-4 h-4 mr-2" /> Report Issue
                     </button>
                   </div>
                 </td>
@@ -511,6 +550,18 @@ const UserAssets: React.FC = () => {
               </button>
             </div>
             
+            {/* Connection Warning */}
+            {!isConnected && (
+              <div className="p-4 mx-6 mt-4 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center space-x-2">
+                  <WifiOffIcon className="w-4 h-4 text-red-500" />
+                  <p className="text-sm text-red-700">
+                    You're currently offline. Please check your connection before submitting.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Asset Info Section */}
             <div className="p-6 bg-lightgreen/50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -529,7 +580,7 @@ const UserAssets: React.FC = () => {
             
             {/* Scrollable Form Content */}
             <div className="overflow-y-auto max-h-[60vh] p-6">
-              <form onSubmit={handleIssueSubmit} className="space-y-6">
+              <form ref={issueFormRef} onSubmit={handleIssueSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -606,36 +657,37 @@ const UserAssets: React.FC = () => {
                     required
                   />
                 </div>
+
+                {/* Modal Footer inside form to enable native submit */}
+                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 -mx-6 px-6">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setShowIssueForm(false);
+                      setSelectedAsset(null);
+                    }} 
+                    className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmittingIssue || !isConnected}
+                    className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] shadow-lg"
+                  >
+                    {isSubmittingIssue ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Submitting...
+                      </>
+                    ) : !isConnected ? (
+                      'Offline'
+                    ) : (
+                      'Submit Issue'
+                    )}
+                  </button>
+                </div>
               </form>
-            </div>
-            
-            {/* Modal Footer */}
-            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800">
-              <button 
-                type="button" 
-                onClick={() => {
-                  setShowIssueForm(false);
-                  setSelectedAsset(null);
-                }} 
-                className="px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                onClick={handleIssueSubmit}
-                disabled={isSubmittingIssue}
-                className="px-6 py-3 text-sm font-medium text-white bg-primary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
-              >
-                {isSubmittingIssue ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Issue'
-                )}
-              </button>
             </div>
           </div>
         </div>
