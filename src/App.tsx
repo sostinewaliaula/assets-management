@@ -49,6 +49,19 @@ function RequireAuth({ children }: { children: React.ReactElement }) {
   return children;
 }
 
+function RequireAdmin({ children }: { children: React.ReactElement }) {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+  if (isLoading) return null;
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  if (user.role !== 'admin') {
+    return <Navigate to="/user/dashboard" replace />;
+  }
+  return children;
+}
+
 function App() {
   const [dbStatus, setDbStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
@@ -123,12 +136,12 @@ function App() {
                 <Route index element={<RoleIndexRedirect />} />
                 <Route path="admin">
                   <Route index element={<Navigate to="dashboard" replace />} />
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="users" element={<UserManagement />} />
-                  <Route path="assets" element={<AssetManagement />} />
-                  <Route path="assets/edit/:assetId" element={<AssetManagement />} />
-                  <Route path="departments" element={<DepartmentManagement />} />
-                  <Route path="issues" element={<IssueManagement />} />
+                  <Route path="dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+                  <Route path="users" element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+                  <Route path="assets" element={<RequireAdmin><AssetManagement /></RequireAdmin>} />
+                  <Route path="assets/edit/:assetId" element={<RequireAdmin><AssetManagement /></RequireAdmin>} />
+                  <Route path="departments" element={<RequireAdmin><DepartmentManagement /></RequireAdmin>} />
+                  <Route path="issues" element={<RequireAdmin><IssueManagement /></RequireAdmin>} />
                 </Route>
                 <Route path="user">
                   <Route index element={<Navigate to="dashboard" replace />} />
