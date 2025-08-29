@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { LockIcon, MailIcon, SunIcon, MoonIcon } from 'lucide-react';
+import Logo from '../../assets/logo.png';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,7 +68,7 @@ const Login: React.FC = () => {
               </button>
             </div>
             <div className="flex flex-col items-center mb-8">
-              <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" className="h-12 w-auto mb-2" />
+              <img src={Logo as unknown as string} alt="Caava Group" className="h-12 w-auto mb-2" />
               <div className="flex items-center">
                 <h1 className="text-2xl font-bold text-primary">Caava</h1>
                 <h1 className="ml-2 text-2xl font-bold text-secondary">Group</h1>

@@ -606,6 +606,10 @@ const AssetManagement: React.FC = () => {
           <button onClick={() => setShowAddAssetModal(true)} className="button-primary flex items-center">
             <PlusIcon className="w-4 h-4 mr-2" /> Add New Asset
           </button>
+          <Link to="/scan" className="button-primary flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7V4a1 1 0 011-1h3M20 7V4a1 1 0 00-1-1h-3M4 17v3a1 1 0 001 1h3M20 17v3a1 1 0 01-1 1h-3M7 12h10M12 7v10" /></svg>
+            Scan QR
+          </Link>
           <div className="flex items-center gap-2">
             <select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as any)} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary">
               <option value="csv">CSV</option>

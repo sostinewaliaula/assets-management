@@ -23,12 +23,13 @@ import UserDashboard from './pages/user/UserDashboard';
 import UserAssets from './pages/user/UserAssets';
 import UserIssues from './pages/user/UserIssues';
 import AssetDetails from './pages/shared/AssetDetails';
+import QrScanner from './pages/shared/QrScanner';
 import NotificationsPage from './pages/shared/NotificationsPage';
 import Settings from './pages/shared/Settings';
 import UserIssueDetail from './pages/user/UserIssueDetail';
 import Profile from './pages/shared/Profile';
 import { supabase } from './lib/supabase';
-import { useSupabase } from './hooks/useSupabase';
+// import { useSupabase } from './hooks/useSupabase';
 import ConnectionStatus from './components/ui/ConnectionStatus';
 
 function RoleIndexRedirect() {
@@ -54,7 +55,7 @@ function App() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('departments')
           .select('count', { count: 'exact', head: true });
         
@@ -137,6 +138,7 @@ function App() {
                   <Route path="issues/:issueId" element={<UserIssueDetail />} />
                 </Route>
                 <Route path="assets/:assetId" element={<AssetDetails />} />
+                <Route path="scan" element={<RequireAuth><QrScanner /></RequireAuth>} />
                 <Route path="shared">
                   <Route path="asset/:id" element={<AssetDetails />} />
                 </Route>

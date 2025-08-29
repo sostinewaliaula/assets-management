@@ -34,7 +34,7 @@ export class EmailNotificationService {
       
       const template = this.createEmailTemplate(data);
       
-      const { data: result, error } = await supabase.functions.invoke('send-email-notification', {
+      const { error } = await supabase.functions.invoke('send-email-notification', {
         body: {
           to: data.userEmail,
           subject: template.subject,
@@ -52,7 +52,7 @@ export class EmailNotificationService {
 
       console.log('✅ Email notification sent successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error sending email notification:', error);
       return false;
     }
@@ -98,8 +98,8 @@ export class EmailNotificationService {
       } else {
         return { success: false, error: 'Email sending failed' };
       }
-    } catch (error) {
-      return { success: false, error: error.message };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'Unknown error' };
     }
   }
 
@@ -121,7 +121,7 @@ export class EmailNotificationService {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('send-email-notification', {
+        const { error } = await supabase.functions.invoke('send-email-notification', {
           body: {
             to: 'test@example.com',
             subject: 'Test',
@@ -195,7 +195,7 @@ export class EmailNotificationService {
       <body>
         <div class="container">
           <div class="header">
-            <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" style="height: 40px;" />
+            <img src="https://i.ibb.co/jZfnmhdg/logo.png" alt="Caava Group" style="height: 40px;" />
             <h1 style="margin: 10px 0 0 0; font-size: 24px;">Caava Group</h1>
             <p style="margin: 5px 0 0 0; opacity: 0.9;">Assets Management System</p>
           </div>
@@ -252,7 +252,7 @@ This is an automated notification from the Caava Group Assets Management System.
     }
   }
 
-  async getUserEmailPreferences(userId: string): Promise<{
+  async getUserEmailPreferences(_userId: string): Promise<{
     emailNotifications: boolean;
     notificationTypes: string[];
   }> {

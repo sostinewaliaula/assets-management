@@ -46,7 +46,7 @@ export const emailConfig: EmailConfig = {
   templates: {
     defaultSubject: '[Caava Group]',
     companyName: 'Caava Group',
-    companyLogo: import.meta.env.VITE_COMPANY_LOGO || 'http://ticket.turnkey.local:8080/scp/logo.php?login',
+    companyLogo: "https://i.ibb.co/jZfnmhdg/logo.png",
     primaryColor: '#667eea',
     secondaryColor: '#764ba2',
   },

@@ -1,4 +1,5 @@
 import React from 'react';
+import Logo from '../../assets/logo.png';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
@@ -84,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   return <div className="flex flex-col h-full py-4 text-gray-800 dark:text-gray-200">
     <div className="px-4 pb-6">
       <Link to="/" className="flex flex-col items-center" onClick={closeSidebar}>
-        <img src="http://ticket.turnkey.local:8080/scp/logo.php?login" alt="Caava Group" className="h-10 w-auto mb-2 hidden sm:block" />
+        <img src={Logo as unknown as string} alt="Caava Group" className="h-10 w-auto mb-2 hidden sm:block" />
         <div className="flex items-center">
           <span className="text-xl sm:text-2xl font-bold" style={{ color: '#219653' }}>Caava</span>
           <span className="ml-1 text-xl sm:text-2xl font-bold" style={{ color: '#9B51E0' }}>Group</span>
