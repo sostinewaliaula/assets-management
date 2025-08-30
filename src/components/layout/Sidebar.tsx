@@ -3,7 +3,18 @@ import Logo from '../../assets/logo.png';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { HomeIcon, MonitorIcon, TicketIcon, UsersIcon, BuildingIcon, SettingsIcon, LogOutIcon, BellIcon, UserIcon } from 'lucide-react';
+import { 
+  HomeIcon, 
+  MonitorIcon, 
+  TicketIcon, 
+  BellIcon, 
+  UserIcon, 
+  UsersIcon, 
+  BuildingIcon, 
+  SettingsIcon, 
+  LogOutIcon,
+  DatabaseIcon
+} from 'lucide-react';
 interface SidebarProps {
   closeSidebar: () => void;
 }
@@ -70,6 +81,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     name: 'Settings',
     path: '/settings',
     icon: <SettingsIcon size={20} />
+  }, {
+    name: 'Backup Management',
+    path: '/admin/backup',
+    icon: <DatabaseIcon size={20} />
   }];
   const userOnlySettings = { name: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> };
   const navItems = isAdmin 

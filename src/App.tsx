@@ -31,6 +31,7 @@ import Profile from './pages/shared/Profile';
 import { supabase } from './lib/supabase';
 // import { useSupabase } from './hooks/useSupabase';
 import ConnectionStatus from './components/ui/ConnectionStatus';
+import BackupManagement from './pages/admin/BackupManagement';
 
 function RoleIndexRedirect() {
   const { user, isLoading } = useAuth();
@@ -142,6 +143,7 @@ function App() {
                   <Route path="assets/edit/:assetId" element={<RequireAdmin><AssetManagement /></RequireAdmin>} />
                   <Route path="departments" element={<RequireAdmin><DepartmentManagement /></RequireAdmin>} />
                   <Route path="issues" element={<RequireAdmin><IssueManagement /></RequireAdmin>} />
+                  <Route path="backup" element={<RequireAdmin><BackupManagement /></RequireAdmin>} />
                 </Route>
                 <Route path="user">
                   <Route index element={<Navigate to="dashboard" replace />} />
