@@ -192,3 +192,20 @@ export interface NotificationRecord {
   read: boolean
   created_at: string
 }
+
+export interface AssetRequest {
+  id: string
+  user_id: string
+  asset_name: string
+  asset_type: string
+  category: string
+  reason: string
+  priority: string
+  status: string
+  requested_date: string
+  approved_date: string | null
+  approved_by: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
