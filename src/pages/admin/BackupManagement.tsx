@@ -4,16 +4,13 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { 
   DownloadIcon, 
   UploadIcon, 
-  ClockIcon, 
-  CalendarIcon, 
   TrashIcon, 
   PlusIcon, 
   RefreshCwIcon,
   AlertTriangleIcon,
-  CheckCircleIcon,
   DatabaseIcon
 } from 'lucide-react';
-import { backupService, BackupSchedule, StoredBackup } from '../../services/backupService';
+import { backupService, StoredBackup } from '../../services/backupService';
 
 
 const BackupManagement: React.FC = () => {
@@ -23,9 +20,7 @@ const BackupManagement: React.FC = () => {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [systemStats, setSystemStats] = useState<any>(null);
-  const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>([]);
   const [storedBackups, setStoredBackups] = useState<StoredBackup[]>([]);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
   const [showCreateBackupModal, setShowCreateBackupModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -34,12 +29,6 @@ const BackupManagement: React.FC = () => {
     skipUsers: false,
     skipNotifications: false
   });
-  const [newSchedule, setNewSchedule] = useState({
-    enabled: true,
-    frequency: 'daily' as const,
-    time: '02:00',
-    retentionDays: 30
-  });
   const [newBackup, setNewBackup] = useState({
     name: '',
     description: ''
@@ -47,15 +36,7 @@ const BackupManagement: React.FC = () => {
 
   useEffect(() => {
     loadSystemStats();
-    loadBackupSchedules();
     loadStoredBackups();
-    
-    // Check for scheduled backups every minute
-    const interval = setInterval(() => {
-      backupService.checkScheduledBackups();
-    }, 60000);
-
-    return () => clearInterval(interval);
   }, []);
 
   // Generate default backup name based on current date and time
@@ -80,15 +61,6 @@ const BackupManagement: React.FC = () => {
       setSystemStats(stats);
     } catch (error) {
       console.error('Failed to load system stats:', error);
-    }
-  };
-
-  const loadBackupSchedules = async () => {
-    try {
-      const schedules = await backupService.getBackupSchedules();
-      setBackupSchedules(schedules);
-    } catch (error) {
-      console.error('Failed to load backup schedules:', error);
     }
   };
 
@@ -283,58 +255,6 @@ const BackupManagement: React.FC = () => {
     }
   };
 
-  const handleCreateSchedule = async () => {
-    try {
-      await backupService.scheduleBackup(newSchedule);
-      
-      addNotification({
-        title: 'Schedule Created',
-        message: `Automatic backup scheduled for ${newSchedule.frequency} at ${newSchedule.time}.`,
-        type: 'success'
-      });
-      
-      setShowScheduleModal(false);
-      setNewSchedule({
-        enabled: true,
-        frequency: 'daily',
-        time: '02:00',
-        retentionDays: 30
-      });
-      
-      await loadBackupSchedules();
-    } catch (error) {
-      console.error('Schedule creation failed:', error);
-      addNotification({
-        title: 'Schedule Failed',
-        message: 'Failed to create backup schedule. Please try again.',
-        type: 'error'
-      });
-    }
-  };
-
-  const handleDeleteSchedule = async (scheduleId: string) => {
-    try {
-      await backupService.deleteBackupSchedule(scheduleId);
-      
-      addNotification({
-        title: 'Schedule Deleted',
-        message: 'Backup schedule deleted successfully.',
-        type: 'success'
-      });
-      
-      await loadBackupSchedules();
-    } catch (error) {
-      console.error('Schedule deletion failed:', error);
-      addNotification({
-        title: 'Delete Failed',
-        message: 'Failed to delete backup schedule. Please try again.',
-        type: 'error'
-      });
-    }
-  };
-
-
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
   };
@@ -345,15 +265,6 @@ const BackupManagement: React.FC = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getFrequencyLabel = (frequency: string) => {
-    switch (frequency) {
-      case 'daily': return 'Daily';
-      case 'weekly': return 'Weekly';
-      case 'monthly': return 'Monthly';
-      default: return frequency;
-    }
   };
 
   if (user?.role !== 'admin') {
@@ -376,7 +287,7 @@ const BackupManagement: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-primary">Backup Management</h1>
             <p className="mt-2 text-gray-700 dark:text-gray-300">
-              Create, store, and manage system backups with automatic scheduling.
+              Create, store, and manage system backups.
             </p>
           </div>
           <div className="flex space-x-2">
@@ -395,7 +306,6 @@ const BackupManagement: React.FC = () => {
               <UploadIcon className="w-4 h-4 mr-2" />
               Restore
             </button>
-            
           </div>
         </div>
       </div>
@@ -519,64 +429,6 @@ const BackupManagement: React.FC = () => {
         )}
       </div>
 
-      {/* Backup Schedules */}
-      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-primary">Automatic Backup Schedules</h2>
-          <button
-            onClick={() => setShowScheduleModal(true)}
-            className="button-primary flex items-center"
-          >
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Schedule
-          </button>
-        </div>
-
-        {backupSchedules.length > 0 ? (
-          <div className="space-y-4">
-            {backupSchedules.map((schedule) => (
-              <div key={schedule.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-3 h-3 rounded-full ${schedule.enabled ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <div>
-                      <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                        {getFrequencyLabel(schedule.frequency)} Backup at {schedule.time}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Retention: {schedule.retentionDays} days
-                      </p>
-                      {schedule.lastBackup && (
-                        <p className="text-xs text-gray-500">
-                          Last backup: {formatDate(schedule.lastBackup)}
-                        </p>
-                      )}
-                      {schedule.nextBackup && (
-                        <p className="text-xs text-gray-500">
-                          Next backup: {formatDate(schedule.nextBackup)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteSchedule(schedule.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <ClockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No backup schedules configured</p>
-            <p className="text-sm text-gray-500">Create a schedule to enable automatic backups</p>
-          </div>
-        )}
-      </div>
-
       {/* Create Backup Modal */}
       {showCreateBackupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -629,75 +481,6 @@ const BackupManagement: React.FC = () => {
                 className="button-primary px-4 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {isCreatingBackup ? 'Creating...' : 'Create Backup'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Backup Schedule Modal */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Create Backup Schedule
-            </h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Frequency
-                </label>
-                <select
-                  value={newSchedule.frequency}
-                  onChange={(e) => setNewSchedule({ ...newSchedule, frequency: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Time
-                </label>
-                <input
-                  type="time"
-                  value={newSchedule.time}
-                  onChange={(e) => setNewSchedule({ ...newSchedule, time: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Retention (days)
-                </label>
-                <input
-                  type="number"
-                  value={newSchedule.retentionDays}
-                  onChange={(e) => setNewSchedule({ ...newSchedule, retentionDays: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  min="1"
-                  max="365"
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-6">
-              <button
-                onClick={() => setShowScheduleModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateSchedule}
-                className="button-primary px-4 py-2 text-sm font-medium"
-              >
-                Create Schedule
               </button>
             </div>
           </div>
