@@ -19,9 +19,6 @@ const UserManagement: React.FC = () => {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
@@ -218,45 +215,15 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
-    if (newPassword.length < 8) {
-      addNotification({
-        title: 'Weak password',
-        message: 'Password must be at least 8 characters long',
-        type: 'warning'
-      });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      addNotification({
-        title: 'Password mismatch',
-        message: 'New password and confirmation do not match',
-        type: 'error'
-      });
-      return;
-    }
-    
+  const handleSendPasswordReset = async (user: User) => {
     try {
-      console.debug('Updating password for user:', editingUser.id, 'len:', newPassword.length);
-      const { error } = await supabase.functions.invoke('admin_update_password', {
-        body: { user_id: editingUser.id, password: newPassword }
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email);
       if (error) throw error;
-
-      addNotification({ title: 'Password Updated', message: `Password for "${editingUser.name}" has been updated successfully`, type: 'success' });
-      addToast({ title: 'Success', message: 'Password updated.', type: 'success' });
-
-      setShowChangePasswordModal(false);
-      setEditingUser(null);
-      setNewPassword('');
-      setConfirmPassword('');
+      addNotification({ title: 'Password Reset Link Sent', message: `A password reset link has been sent to ${user.email}.`, type: 'success' });
+      addToast({ title: 'Success', message: 'Password reset link sent.', type: 'success' });
     } catch (error: any) {
-      const serverMsg = error?.context?.error || error?.message || 'Failed to update password. Please try again.';
-      console.error('Error updating password:', serverMsg, error);
-      addNotification({ title: 'Error', message: serverMsg, type: 'error' });
-      addToast({ title: 'Error', message: serverMsg, type: 'error' });
+      addNotification({ title: 'Error', message: error.message || 'Failed to send password reset link.', type: 'error' });
+      addToast({ title: 'Error', message: error.message || 'Failed to send password reset link.', type: 'error' });
     }
   };
   const getRoleBadgeClass = (role: string) => {
@@ -539,7 +506,7 @@ const UserManagement: React.FC = () => {
               <td className="px-6 py-4">
                 <div className="flex space-x-2">
                   <button onClick={() => { setEditingUser(user); setNewUser({ name: user.name, email: user.email, role: user.role, department_id: user.department_id || '', position: user.position || '', phone: user.phone || '', password: '', confirmPassword: '' }); setShowEditUserModal(true); }} className="p-1 text-yellow-600 rounded hover:bg-yellow-100" title="Edit User"><EditIcon className="w-5 h-5" /></button>
-                  <button onClick={() => { setEditingUser(user); setShowChangePasswordModal(true); }} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Change Password"><LockIcon className="w-5 h-5" /></button>
+                  <button onClick={() => handleSendPasswordReset(user)} className="p-1 text-blue-600 rounded hover:bg-blue-100" title="Send Password Reset Link"><LockIcon className="w-5 h-5" /></button>
                   <button onClick={() => { setEditingUser(user); setShowDeleteModal(true); }} className="p-1 text-red-600 rounded hover:bg-red-100" title="Delete User" disabled={user.role === 'admin'}><TrashIcon className="w-5 h-5" style={{ opacity: user.role === 'admin' ? 0.5 : 1 }} /></button>
                 </div>
               </td>
@@ -780,62 +747,6 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>}
-
-      {/* Change Password Modal */}
-      {showChangePasswordModal && editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-lg p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Change Password</h3>
-              <button
-                onClick={() => { setShowChangePasswordModal(false); setEditingUser(null); setNewPassword(''); setConfirmPassword(''); }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleChangePassword}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-primary">New Password</label>
-                  <input
-                    type="password"
-                    className="block w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-primary">Confirm Password</label>
-                  <input
-                    type="password"
-                    className="block w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Note: This is a demo. Hook this up to your auth backend to persist changes.</p>
-              </div>
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowChangePasswordModal(false); setEditingUser(null); setNewPassword(''); setConfirmPassword(''); }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark">
-                  Update Password
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>;
 };
 export default UserManagement;
