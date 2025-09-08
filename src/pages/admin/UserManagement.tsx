@@ -357,20 +357,57 @@ const UserManagement: React.FC = () => {
               const text = await file.text();
               const lines = text.split(/\r?\n/).filter(l => l.trim());
               if (lines.length <= 1) { addNotification({ title: 'Import Failed', message: 'CSV appears empty.', type: 'error' }); return; }
+              // Support both old and new headers
               const header = lines[0].split(',').map(h => h.trim().replace(/^\"|\"$/g, ''));
-              const idx = (k: string) => header.indexOf(k);
-              const nameIdx = idx('name'); const emailIdx = idx('email'); const roleIdx = idx('role');
-              if ([nameIdx,emailIdx,roleIdx].some(i => i === -1)) { addNotification({ title: 'Import Failed', message: 'CSV missing required headers: name,email,role', type: 'error' }); return; }
-              const parse = (line: string) => { const res: string[] = []; let cur=''; let q=false; for (let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(q && line[i+1]==='"'){ cur+='"'; i++; } else { q=!q; } } else if(ch===',' && !q){ res.push(cur); cur=''; } else { cur+=ch; } } res.push(cur); return res.map(s=>s.trim()); };
+              // Try to find both possible header names
+              const firstNameIdx = header.findIndex(h => h.toLowerCase().includes('first'));
+              const lastNameIdx = header.findIndex(h => h.toLowerCase().includes('last'));
+              const emailIdx = header.findIndex(h => h.toLowerCase().includes('email'));
+              // Optional: role, department, position, phone
+              const roleIdx = header.findIndex(h => h.toLowerCase() === 'role');
+              const departmentIdx = header.findIndex(h => h.toLowerCase().includes('department'));
+              const positionIdx = header.findIndex(h => h.toLowerCase().includes('position'));
+              const phoneIdx = header.findIndex(h => h.toLowerCase().includes('phone'));
+              if ([firstNameIdx, lastNameIdx, emailIdx].some(i => i === -1)) {
+                addNotification({ title: 'Import Failed', message: 'CSV missing required headers: First Name, Last Name, Email Address', type: 'error' }); return;
+              }
+              const parse = (line: string) => { const res: string[] = []; let cur=''; let q=false; for (let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='\"'){ if(q && line[i+1]==='\"'){ cur+='\"'; i++; } else { q=!q; } } else if(ch===',' && !q){ res.push(cur); cur=''; } else { cur+=ch; } } res.push(cur); return res.map(s=>s.trim()); };
               const rows = lines.slice(1).map(parse);
-              let created = 0;
+              let created = 0, failed = 0;
               for (const r of rows) {
                 const get = (i: number) => r[i] ? r[i].replace(/^\"|\"$/g, '') : '';
-                const payload = { name: get(nameIdx), email: get(emailIdx), role: get(roleIdx) as any } as any;
-                if (!payload.name || !payload.email || !payload.role) continue;
-                try { await userService.create({ ...payload, department_id: null, position: '', phone: '' } as any); created++; } catch {}
+                const firstName = get(firstNameIdx);
+                const lastName = get(lastNameIdx);
+                const email = get(emailIdx);
+                if (!firstName || !lastName || !email) continue;
+                const name = `${firstName} ${lastName}`;
+                const password = `${firstName}#`;
+                const role = roleIdx !== -1 ? get(roleIdx) : 'Employee';
+                const department_id = departmentIdx !== -1 ? get(departmentIdx) : 'Employee';
+                const position = positionIdx !== -1 ? get(positionIdx) : '';
+                const phone = phoneIdx !== -1 ? get(phoneIdx) : '';
+                try {
+                  const { error } = await supabase.functions.invoke('admin_create_user', {
+                    body: {
+                      email,
+                      name,
+                      role,
+                      department_id,
+                      position,
+                      phone,
+                      password
+                    }
+                  });
+                  if (error) throw error;
+                  created++;
+                } catch (err: any) {
+                  failed++;
+                }
               }
-              addNotification({ title: 'Import Complete', message: `Imported ${created} users from CSV.`, type: 'success' });
+              // Refresh users list
+              const fetchedUsers = await userService.getAll();
+              setUsers(fetchedUsers);
+              addNotification({ title: 'Import Complete', message: `Imported ${created} users. ${failed ? failed + ' failed.' : ''}`, type: created ? 'success' : 'error' });
             } catch (e: any) { addNotification({ title: 'Import Failed', message: e?.message || 'Could not import CSV.', type: 'error' }); }
             finally { if (importInputRef.current) importInputRef.current.value=''; }
           }} />

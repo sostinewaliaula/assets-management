@@ -8,6 +8,12 @@ import { Asset, supabase } from '../../lib/supabase';
 import { issueService, assetRequestsService, userService, notificationService, departmentService } from '../../services/database';
 import { formatKES } from '../../utils/formatCurrency';
 
+const assetTypes = ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet', 'Printer', 'Server', 'Router', 'Switch', 'Projector', 'Camera', 'Furniture', 'Vehicle'];
+const manufacturers = ['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Samsung', 'Cisco', 'Logitech', 'Canon', 'Epson', 'LG', 'ASUS', 'Acer', 'Sony', 'Brother'];
+const locations = ['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
+const assetStatuses = ['Available', 'Assigned', 'In Maintenance', 'Reserved', 'Disposed'];
+const assetConditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'];
+
 const UserAssets: React.FC = () => {
   const { user } = useAuth();
   const { addNotification, addToast } = useNotifications();
@@ -18,6 +24,24 @@ const UserAssets: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  // Feature toggle state
+  const [canSelfAddAsset, setCanSelfAddAsset] = useState<boolean>(false);
+  // Add Asset form state
+  const [showAddAssetForm, setShowAddAssetForm] = useState(false);
+  const [newAsset, setNewAsset] = useState({
+    name: '',
+    type: 'Laptop',
+    category: 'Electronics',
+    manufacturer: 'Dell',
+    model: '',
+    serial_number: '',
+    condition: 'New',
+    location: 'Turnkey',
+    department_id: '',
+    last_maintenance: null as string | null,
+    notes: ''
+  });
+  const [isSubmittingAsset, setIsSubmittingAsset] = useState(false);
   
   // Issue form state
   const [showIssueForm, setShowIssueForm] = useState(false);
@@ -41,6 +65,26 @@ const UserAssets: React.FC = () => {
   // Loading states
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  // Employee department id for default assignment
+  const [employeeDeptId, setEmployeeDeptId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch Employee department id (if exists)
+    const loadEmployeeDept = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('departments')
+          .select('id, name')
+          .ilike('name', 'Employee')
+          .maybeSingle();
+        if (!error && data?.id) setEmployeeDeptId(data.id);
+      } catch {
+        // ignore
+      }
+    };
+    loadEmployeeDept();
+  }, []);
+
   useEffect(() => {
     // Fetch assets from Supabase
     const fetchAssets = async () => {
@@ -85,6 +129,24 @@ const UserAssets: React.FC = () => {
     };
     fetchAssets();
   }, [addNotification, user?.id, query]);
+
+  useEffect(() => {
+    // Fetch feature toggle from system_settings
+    const fetchSetting = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'user_asset_self_add_enabled')
+          .single();
+        if (error) throw error;
+        setCanSelfAddAsset(data?.value === 'true');
+      } catch (e) {
+        setCanSelfAddAsset(false);
+      }
+    };
+    fetchSetting();
+  }, []);
 
   // Handle issue form submission
   const handleIssueSubmit = async (e: React.FormEvent) => {
@@ -316,6 +378,58 @@ const UserAssets: React.FC = () => {
     }
   };
 
+  // Add Asset submit handler
+  const handleAddAssetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!newAsset.name || !newAsset.type || !newAsset.serial_number) {
+      addNotification({ title: 'Error', message: 'Please fill in all required fields.', type: 'error' });
+      return;
+    }
+    setIsSubmittingAsset(true);
+    try {
+      const assetToAdd = {
+        ...newAsset,
+        assigned_to: user.id,
+        status: 'Assigned',
+        department_id: employeeDeptId || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabase
+        .from('assets')
+        .insert(assetToAdd);
+      if (error) throw error;
+      addNotification({ title: 'Asset Added', message: 'Your asset has been added.', type: 'success' });
+      setShowAddAssetForm(false);
+      setNewAsset({
+        name: '',
+        type: 'Laptop',
+        category: 'Electronics',
+        manufacturer: 'Dell',
+        model: '',
+        serial_number: '',
+        condition: 'New',
+        location: 'Turnkey',
+        department_id: '',
+        last_maintenance: null,
+        notes: ''
+      });
+      // Refresh assets
+      const { data } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .order('created_at', { ascending: false });
+      setAssets(data as Asset[]);
+      setFilteredAssets(data as Asset[]);
+    } catch (error) {
+      addNotification({ title: 'Error', message: 'Failed to add asset.', type: 'error' });
+    } finally {
+      setIsSubmittingAsset(false);
+    }
+  };
+
   useEffect(() => {
     // Filter assets based on search term and filters
     let result = assets;
@@ -335,11 +449,6 @@ const UserAssets: React.FC = () => {
     setFilteredAssets(result);
   }, [assets, searchTerm, filterType, filterStatus]);
   // Extract unique asset types from assets
-  const assetTypes = ['All', ...new Set(assets.map(asset => asset.type))];
-  // Extract unique asset statuses from assets
-  const assetStatuses = ['All', ...new Set(assets.map(asset => asset.status))];
-  
-  // Ensure we have assets before trying to extract types and statuses
   const safeAssetTypes = assets.length > 0 ? assetTypes : ['All'];
   const safeAssetStatuses = assets.length > 0 ? assetStatuses : ['All'];
   const getStatusColor = (status: string) => {
@@ -426,7 +535,85 @@ const UserAssets: React.FC = () => {
           </button>
           <Link to="/" className="button-primary flex items-center justify-center"> <ArrowRightIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Back to Dashboard</span> </Link>
         </div>
+        {canSelfAddAsset && (
+          <div className="mt-6">
+            <button
+              className="button-primary px-4 py-2 text-sm font-medium"
+              onClick={() => setShowAddAssetForm(true)}
+            >
+              + Add Asset I Own
+            </button>
+          </div>
+        )}
       </div>
+      {/* Add Asset Modal */}
+      {canSelfAddAsset && showAddAssetForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-primary">Add Asset I Own</h3>
+              <button onClick={() => setShowAddAssetForm(false)} className="text-gray-500 hover:text-gray-700">
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleAddAssetSubmit} className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Asset Name</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.name} onChange={e => setNewAsset({ ...newAsset, name: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Asset Type</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.type} onChange={e => setNewAsset({ ...newAsset, type: e.target.value })} required>
+                  {assetTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Manufacturer</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.manufacturer} onChange={e => setNewAsset({ ...newAsset, manufacturer: e.target.value })} required>
+                  {manufacturers.map(manufacturer => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Model</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.model} onChange={e => setNewAsset({ ...newAsset, model: e.target.value })} />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Serial Number</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.serial_number} onChange={e => setNewAsset({ ...newAsset, serial_number: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Category</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.category} onChange={e => setNewAsset({ ...newAsset, category: e.target.value })} required>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Furniture">Furniture</option>
+                  <option value="Vehicles">Vehicles</option>
+                  <option value="Office Equipment">Office Equipment</option>
+                  <option value="Software">Software</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Location</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.location} onChange={e => setNewAsset({ ...newAsset, location: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Condition</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.condition} onChange={e => setNewAsset({ ...newAsset, condition: e.target.value })} required>
+                  {assetConditions.map(condition => <option key={condition} value={condition}>{condition}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block mb-2 text-sm font-medium text-primary">Notes</label>
+                <textarea className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={3} value={newAsset.notes} onChange={e => setNewAsset({ ...newAsset, notes: e.target.value })}></textarea>
+              </div>
+              <div className="md:col-span-2 flex justify-end space-x-2">
+                <button type="button" onClick={() => setShowAddAssetForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
+                <button type="submit" className="button-primary px-4 py-2 text-sm font-medium" disabled={isSubmittingAsset}>{isSubmittingAsset ? 'Adding...' : 'Add Asset'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Search and Filter */}
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
