@@ -401,6 +401,28 @@ const UserAssets: React.FC = () => {
         .insert(assetToAdd);
       if (error) throw error;
       addNotification({ title: 'Asset Added', message: 'Your asset has been added.', type: 'success' });
+      addToast({ title: 'Asset Added', message: `${newAsset.name} has been added and assigned to you.`, type: 'success' });
+      try {
+        await notificationService.create({
+          user_id: user.id,
+          title: 'Asset Added',
+          message: `Your asset "${newAsset.name}" has been added and assigned to you.`,
+          type: 'success',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+        const recipients = await userService.getByRoles(['admin', 'department_officer']);
+        await Promise.all(
+          recipients
+            .filter(u => u.id !== user.id)
+            .map(u => notificationService.notifyUser(
+              u.id,
+              'User Added Own Asset',
+              `${user.name} added an asset they own: "${newAsset.name}" (SN: ${newAsset.serial_number || 'N/A'}).`,
+              'info'
+            ))
+        );
+      } catch {}
       setShowAddAssetForm(false);
       setNewAsset({
         name: '',
