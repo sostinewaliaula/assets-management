@@ -610,85 +610,9 @@ const UserAssets: React.FC = () => {
           </button>
           <Link to="/" className="button-primary flex items-center justify-center"> <ArrowRightIcon className="w-6 h-6 mr-3 text-white" /> <span className="font-medium text-white">Back to Dashboard</span> </Link>
         </div>
-        {canSelfAddAsset && (
-          <div className="mt-6">
-            <button
-              className="button-primary px-4 py-2 text-sm font-medium"
-              onClick={() => setShowAddAssetForm(true)}
-            >
-              + Add Asset I Own
-            </button>
-          </div>
-        )}
+        {/* User self-add disabled: Only admins can add assets */}
       </div>
-      {/* Add Asset Modal */}
-      {canSelfAddAsset && showAddAssetForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-primary">Add Asset I Own</h3>
-              <button onClick={() => setShowAddAssetForm(false)} className="text-gray-500 hover:text-gray-700">
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleAddAssetSubmit} className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Asset Name</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.name} onChange={e => setNewAsset({ ...newAsset, name: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Asset Type</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.type} onChange={e => setNewAsset({ ...newAsset, type: e.target.value })} required>
-                  {assetTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Manufacturer</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.manufacturer} onChange={e => setNewAsset({ ...newAsset, manufacturer: e.target.value })} required>
-                  {manufacturers.map(manufacturer => <option key={manufacturer} value={manufacturer}>{manufacturer}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Model</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.model} onChange={e => setNewAsset({ ...newAsset, model: e.target.value })} />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Serial Number</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.serial_number} onChange={e => setNewAsset({ ...newAsset, serial_number: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Category</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.category} onChange={e => setNewAsset({ ...newAsset, category: e.target.value })} required>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Furniture">Furniture</option>
-                  <option value="Vehicles">Vehicles</option>
-                  <option value="Office Equipment">Office Equipment</option>
-                  <option value="Software">Software</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Location</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.location} onChange={e => setNewAsset({ ...newAsset, location: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Condition</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.condition} onChange={e => setNewAsset({ ...newAsset, condition: e.target.value })} required>
-                  {assetConditions.map(condition => <option key={condition} value={condition}>{condition}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block mb-2 text-sm font-medium text-primary">Notes</label>
-                <textarea className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={3} value={newAsset.notes} onChange={e => setNewAsset({ ...newAsset, notes: e.target.value })}></textarea>
-              </div>
-              <div className="md:col-span-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowAddAssetForm(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
-                <button type="submit" className="button-primary px-4 py-2 text-sm font-medium" disabled={isSubmittingAsset}>{isSubmittingAsset ? 'Adding...' : 'Add Asset'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Add Asset modal removed for users */}
       {/* Search and Filter */}
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
         <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
@@ -763,12 +687,7 @@ const UserAssets: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <Link to={`/assets/${asset.id}`} className="button-primary px-3 py-1 text-xs font-medium">View Details</Link>
-                    <button 
-                      onClick={() => { setEditingAsset(asset); setShowEditAssetForm(true); }} 
-                      className="button-primary px-3 py-1 text-xs font-medium"
-                    >
-                      Edit
-                    </button>
+                    {/* Edit disabled for users; admins manage assets */}
                     <button 
                       onClick={() => openIssueForm(asset)} 
                       className="button-primary flex items-center"
@@ -1102,74 +1021,7 @@ const UserAssets: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Asset Modal */}
-      {showEditAssetForm && editingAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-primary">Edit My Asset</h3>
-              <button onClick={() => { setShowEditAssetForm(false); setEditingAsset(null); }} className="text-gray-500 hover:text-gray-700">
-                <XCircleIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <form onSubmit={handleEditAssetSubmit} className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Asset Name</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.name} onChange={e => setEditingAsset({ ...editingAsset, name: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Asset Type</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.type} onChange={e => setEditingAsset({ ...editingAsset, type: e.target.value })} required>
-                  {assetTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Manufacturer</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.manufacturer} onChange={e => setEditingAsset({ ...editingAsset, manufacturer: e.target.value })} required>
-                  {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Model</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.model || ''} onChange={e => setEditingAsset({ ...editingAsset, model: e.target.value })} />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Serial Number</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.serial_number || ''} onChange={e => setEditingAsset({ ...editingAsset, serial_number: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Category</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.category} onChange={e => setEditingAsset({ ...editingAsset, category: e.target.value })} required>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Furniture">Furniture</option>
-                  <option value="Vehicles">Vehicles</option>
-                  <option value="Office Equipment">Office Equipment</option>
-                  <option value="Software">Software</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Location</label>
-                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.location || ''} onChange={e => setEditingAsset({ ...editingAsset, location: e.target.value })} required />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-primary">Condition</label>
-                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.condition} onChange={e => setEditingAsset({ ...editingAsset, condition: e.target.value })} required>
-                  {assetConditions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block mb-2 text-sm font-medium text-primary">Notes</label>
-                <textarea className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={3} value={editingAsset.notes || ''} onChange={e => setEditingAsset({ ...editingAsset, notes: e.target.value })}></textarea>
-              </div>
-              <div className="md:col-span-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => { setShowEditAssetForm(false); setEditingAsset(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
-                <button type="submit" className="button-primary px-4 py-2 text-sm font-medium">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Edit Asset modal removed for users */}
     </div>
   );
 };
