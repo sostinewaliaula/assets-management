@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon, XCircleIcon, DownloadIcon, UploadIcon } from 'lucide-react';
+import { UserIcon, PlusIcon, EditIcon, TrashIcon, SearchIcon, FilterIcon, RefreshCwIcon, AlertCircleIcon, LockIcon, MailIcon, BuildingIcon, BadgeIcon, XCircleIcon, DownloadIcon, UploadIcon, EyeIcon, EyeOffIcon } from 'lucide-react';
 import Logo from '../../assets/logo.png';
 import { User } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +23,8 @@ const UserManagement: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
   const importInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [newUser, setNewUser] = useState({
     name: '',
     email: '',
@@ -624,11 +626,21 @@ const UserManagement: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Password</label>
-              <input type="password" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Minimum 8 characters" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required />
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} className="block w-full px-4 py-2 pr-10 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Minimum 8 characters" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required />
+                <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-600 hover:text-primary" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                  {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Confirm Password</label>
-              <input type="password" className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={e => setNewUser({ ...newUser, confirmPassword: e.target.value })} required />
+              <div className="relative">
+                <input type={showConfirmPassword ? 'text' : 'password'} className="block w-full px-4 py-2 pr-10 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Re-enter password" value={newUser.confirmPassword} onChange={e => setNewUser({ ...newUser, confirmPassword: e.target.value })} required />
+                <button type="button" onClick={() => setShowConfirmPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-600 hover:text-primary" aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
+                  {showConfirmPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex justify-end space-x-2">

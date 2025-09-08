@@ -3,13 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { LockIcon, MailIcon, SunIcon, MoonIcon } from 'lucide-react';
+import { LockIcon, MailIcon, SunIcon, MoonIcon, EyeIcon, EyeOffIcon } from 'lucide-react';
 import Logo from '../../assets/logo.png';
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const {
     login
   } = useAuth();
@@ -92,7 +93,10 @@ const Login: React.FC = () => {
                   <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <LockIcon className="w-5 h-5 text-gray-400" />
                   </div>
-                  <input className="block w-full pl-10 mt-1 text-sm border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl form-input focus:border-primary focus:outline-none focus:ring focus:ring-primary focus:ring-opacity-40" placeholder="************" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                  <input className="block w-full pl-10 pr-10 mt-1 text-sm border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl form-input focus:border-primary focus:outline-none focus:ring focus:ring-primary focus:ring-opacity-40" placeholder="************" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required />
+                  <button type="button" onClick={() => setShowPassword(v => !v)} className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-600 dark:text-gray-300 hover:text-primary" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                  </button>
                 </div>
               </label>
               <div className="flex mt-6 text-sm">

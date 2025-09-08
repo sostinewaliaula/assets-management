@@ -42,6 +42,9 @@ const UserAssets: React.FC = () => {
     notes: ''
   });
   const [isSubmittingAsset, setIsSubmittingAsset] = useState(false);
+  // Edit asset modal state
+  const [showEditAssetForm, setShowEditAssetForm] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<any | null>(null);
   
   // Issue form state
   const [showIssueForm, setShowIssueForm] = useState(false);
@@ -452,6 +455,56 @@ const UserAssets: React.FC = () => {
     }
   };
 
+  const handleEditAssetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !editingAsset) return;
+    // Only allow editing of specific fields
+    const updates: any = {
+      name: editingAsset.name,
+      type: editingAsset.type,
+      manufacturer: editingAsset.manufacturer,
+      model: editingAsset.model || '',
+      serial_number: editingAsset.serial_number,
+      category: editingAsset.category,
+      location: editingAsset.location,
+      condition: editingAsset.condition,
+      notes: editingAsset.notes || '',
+      updated_at: new Date().toISOString()
+    };
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .update(updates)
+        .eq('id', editingAsset.id)
+        .eq('assigned_to', user.id); // ensure updating only own asset
+      if (error) throw error;
+      addNotification({ title: 'Asset Updated', message: 'Your asset details have been updated.', type: 'success' });
+      addToast({ title: 'Asset Updated', message: `${editingAsset.name} has been updated.`, type: 'success' });
+      try {
+        await notificationService.create({
+          user_id: user.id,
+          title: 'Asset Updated',
+          message: `Your asset "${editingAsset.name}" was updated successfully.`,
+          type: 'success',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      } catch {}
+      // Refresh list
+      const { data } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('assigned_to', user.id)
+        .order('created_at', { ascending: false });
+      setAssets((data as Asset[]) || []);
+      setFilteredAssets((data as Asset[]) || []);
+      setShowEditAssetForm(false);
+      setEditingAsset(null);
+    } catch (err) {
+      addNotification({ title: 'Error', message: 'Failed to update asset.', type: 'error' });
+    }
+  };
+
   useEffect(() => {
     // Filter assets based on search term and filters
     let result = assets;
@@ -710,6 +763,12 @@ const UserAssets: React.FC = () => {
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <Link to={`/assets/${asset.id}`} className="button-primary px-3 py-1 text-xs font-medium">View Details</Link>
+                    <button 
+                      onClick={() => { setEditingAsset(asset); setShowEditAssetForm(true); }} 
+                      className="button-primary px-3 py-1 text-xs font-medium"
+                    >
+                      Edit
+                    </button>
                     <button 
                       onClick={() => openIssueForm(asset)} 
                       className="button-primary flex items-center"
@@ -1039,6 +1098,75 @@ const UserAssets: React.FC = () => {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Asset Modal */}
+      {showEditAssetForm && editingAsset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-primary">Edit My Asset</h3>
+              <button onClick={() => { setShowEditAssetForm(false); setEditingAsset(null); }} className="text-gray-500 hover:text-gray-700">
+                <XCircleIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleEditAssetSubmit} className="grid grid-cols-1 gap-4 mb-4 md:grid-cols-2">
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Asset Name</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.name} onChange={e => setEditingAsset({ ...editingAsset, name: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Asset Type</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.type} onChange={e => setEditingAsset({ ...editingAsset, type: e.target.value })} required>
+                  {assetTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Manufacturer</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.manufacturer} onChange={e => setEditingAsset({ ...editingAsset, manufacturer: e.target.value })} required>
+                  {manufacturers.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Model</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.model || ''} onChange={e => setEditingAsset({ ...editingAsset, model: e.target.value })} />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Serial Number</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.serial_number || ''} onChange={e => setEditingAsset({ ...editingAsset, serial_number: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Category</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.category} onChange={e => setEditingAsset({ ...editingAsset, category: e.target.value })} required>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Furniture">Furniture</option>
+                  <option value="Vehicles">Vehicles</option>
+                  <option value="Office Equipment">Office Equipment</option>
+                  <option value="Software">Software</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Location</label>
+                <input type="text" className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.location || ''} onChange={e => setEditingAsset({ ...editingAsset, location: e.target.value })} required />
+              </div>
+              <div>
+                <label className="block mb-2 text-sm font-medium text-primary">Condition</label>
+                <select className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.condition} onChange={e => setEditingAsset({ ...editingAsset, condition: e.target.value })} required>
+                  {assetConditions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block mb-2 text-sm font-medium text-primary">Notes</label>
+                <textarea className="block w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" rows={3} value={editingAsset.notes || ''} onChange={e => setEditingAsset({ ...editingAsset, notes: e.target.value })}></textarea>
+              </div>
+              <div className="md:col-span-2 flex justify-end space-x-2">
+                <button type="button" onClick={() => { setShowEditAssetForm(false); setEditingAsset(null); }} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
+                <button type="submit" className="button-primary px-4 py-2 text-sm font-medium">Save Changes</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
