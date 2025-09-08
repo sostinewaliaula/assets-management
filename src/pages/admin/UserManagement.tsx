@@ -11,7 +11,8 @@ const UserManagement: React.FC = () => {
   const { addNotification, addToast } = useNotifications();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string; parent_id: string | null }>>([]);
+  const [selectedParentDepartment, setSelectedParentDepartment] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('All');
@@ -45,16 +46,19 @@ const UserManagement: React.FC = () => {
         setUsers(fetchedUsers);
         setFilteredUsers(fetchedUsers);
         
-        // Fetch departments
+        // Fetch departments (with parent_id)
         const { data: deptData, error: deptError } = await supabase
           .from('departments')
-          .select('id, name')
+          .select('id, name, parent_id')
           .order('name');
         
         if (deptError) {
           console.error('Error fetching departments:', deptError);
         } else {
-          setDepartments((deptData as Array<{ id: string; name: string }>) || []);
+          setDepartments((deptData as Array<{ id: string; name: string; parent_id: string | null }>) || []);
+          // Set default parent department to first root (Turnkey, Agencify, Caava AI)
+          const roots = (deptData as Array<{ id: string; name: string; parent_id: string | null }>).filter(d => !d.parent_id && ['Turnkey','Agencify','Caava AI'].includes(d.name));
+          if (roots.length > 0) setSelectedParentDepartment(roots[0].id);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -605,10 +609,25 @@ const UserManagement: React.FC = () => {
               </select>
             </div>
             <div>
+              <label className="block mb-2 text-sm font-medium text-primary">Parent Department</label>
+              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={selectedParentDepartment} onChange={e => { setSelectedParentDepartment(e.target.value); setNewUser({ ...newUser, department_id: '' }); }} required>
+                {departments.filter(d => !d.parent_id && ['Turnkey','Agencify','Caava AI'].includes(d.name)).map(root => (
+                  <option key={root.id} value={root.id}>{root.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block mb-2 text-sm font-medium text-primary">Department</label>
               <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newUser.department_id || ''} onChange={e => setNewUser({ ...newUser, department_id: e.target.value })} required>
                 <option value="">Select Department</option>
-                {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+                {/* Option to assign to root itself */}
+                {departments.filter(d => d.id === selectedParentDepartment).map(dept => (
+                  <option key={dept.id} value={dept.id}>{dept.name} (Root)</option>
+                ))}
+                {/* Sub-departments under selected parent */}
+                {departments.filter(d => d.parent_id === selectedParentDepartment).map(dept => (
+                  <option key={dept.id} value={dept.id}>{dept.name}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -712,16 +731,28 @@ const UserManagement: React.FC = () => {
                 </div>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Parent Department
+                  </label>
+                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={selectedParentDepartment} onChange={e => { setSelectedParentDepartment(e.target.value); setNewUser({ ...newUser, department_id: '' }); }} required>
+                    {departments.filter(d => !d.parent_id && ['Turnkey','Agencify','Caava AI'].includes(d.name)).map(root => (
+                      <option key={root.id} value={root.id}>{root.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Department
                   </label>
-                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newUser.department_id || ''} onChange={e => setNewUser({
-                ...newUser,
-                department_id: e.target.value
-              })} required>
+                  <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" value={newUser.department_id || ''} onChange={e => setNewUser({ ...newUser, department_id: e.target.value })} required>
                     <option value="">Select Department</option>
-                    {departments.map(department => <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>)}
+                    {/* Option to assign to root itself */}
+                    {departments.filter(d => d.id === selectedParentDepartment).map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name} (Root)</option>
+                    ))}
+                    {/* Sub-departments under selected parent */}
+                    {departments.filter(d => d.parent_id === selectedParentDepartment).map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
