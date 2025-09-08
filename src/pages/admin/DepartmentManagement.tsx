@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../../contexts/NotificationContext';
-import { SearchIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, AlertCircleIcon, BuildingIcon, UsersIcon, MonitorIcon, SettingsIcon, FilterIcon, RefreshCwIcon, DownloadIcon, UploadIcon } from 'lucide-react';
+import { SearchIcon, PlusIcon, EditIcon, TrashIcon, XCircleIcon, BuildingIcon, RefreshCwIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 import Logo from '../../assets/logo.png';
-import { departmentService, userService, assetService } from '../../services/database';
+import { departmentService } from '../../services/database';
 import { Department } from '../../lib/supabase';
 
 const DepartmentManagement: React.FC = () => {
@@ -21,7 +21,8 @@ const DepartmentManagement: React.FC = () => {
     name: '',
     description: '',
     location: '',
-    manager: ''
+    manager: '',
+    parent_id: '' as string | ''
   });
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
@@ -34,6 +35,37 @@ const DepartmentManagement: React.FC = () => {
       const departments = await departmentService.getAll();
       setDepartmentData(departments);
       setFilteredDepartments(departments);
+      // Ensure primary roots exist
+      const primaryNames = ['Turnkey','Agencify','Caava AI'];
+      const existingRoots = new Set(
+        departments
+          .filter(d => !(d as any).parent_id)
+          .map(d => (d.name || '').trim().toLowerCase())
+      );
+      const toCreate = primaryNames.filter(n => !existingRoots.has(n.toLowerCase()));
+      if (toCreate.length > 0) {
+        for (const name of toCreate) {
+          try {
+            await departmentService.create({
+              name,
+              description: `Root department: ${name}`,
+              location: name === 'Turnkey' ? 'Turnkey' : '',
+              manager: 'Unassigned'
+            } as any);
+          } catch (_) { /* ignore individual failures */ }
+        }
+      }
+      // Promote any matching primaries that accidentally have a parent
+      const all = await departmentService.getAll();
+      const toPromote = all.filter(d => primaryNames.map(n => n.toLowerCase()).includes((d.name || '').trim().toLowerCase()) && (d as any).parent_id);
+      for (const dept of toPromote) {
+        try { await departmentService.update(dept.id, { parent_id: null } as any); } catch (_) {}
+      }
+      if (toCreate.length > 0 || toPromote.length > 0) {
+        const refreshed = await departmentService.getAll();
+        setDepartmentData(refreshed);
+        setFilteredDepartments(refreshed);
+      }
       } catch (error) {
         console.error('Error fetching department data:', error);
         addNotification({
@@ -104,7 +136,8 @@ const DepartmentManagement: React.FC = () => {
         asset_count: 0,
         asset_value: '$0',
       manager: newDepartment.manager || 'Unassigned',
-        manager_id: null
+        manager_id: null,
+      parent_id: newDepartment.parent_id || null
     };
 
       const newDepartmentData = await departmentService.create(departmentToAdd);
@@ -118,7 +151,8 @@ const DepartmentManagement: React.FC = () => {
       name: '',
       description: '',
       location: '',
-      manager: ''
+      manager: '',
+      parent_id: ''
     });
       
     // Show a notification
@@ -153,12 +187,13 @@ const DepartmentManagement: React.FC = () => {
     
     try {
       // Update the department in the database
-      const updatedDepartment = await departmentService.update(selectedDepartment.id, {
+      const updatedDepartment = await departmentService.update(selectedDepartment.id, ({
       name: newDepartment.name,
       description: newDepartment.description,
       location: newDepartment.location,
-        manager: newDepartment.manager || selectedDepartment.manager
-      });
+      manager: newDepartment.manager || selectedDepartment.manager,
+      parent_id: newDepartment.parent_id || null
+      } as any));
 
       // Update the department in the list
       const updatedDepartments = departmentData.map(dept => 
@@ -174,7 +209,8 @@ const DepartmentManagement: React.FC = () => {
       name: '',
       description: '',
       location: '',
-      manager: ''
+      manager: '',
+      parent_id: ''
     });
       
     // Show a notification
@@ -424,132 +460,105 @@ const DepartmentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Departments List */}
-    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+      {/* Departments List (Grouped by primary roots) */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-primary">All Departments</h2>
+            <h2 className="text-xl font-bold text-primary">All Departments</h2>
             <span className="px-3 py-1 text-sm font-medium text-primary bg-lightgreen rounded-full">
               {filteredDepartments.length} departments
             </span>
-        </div>
-        </div>
-        
-        {filteredDepartments.length > 0 ? (
-          <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
-          <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
-            <tr>
-              <th scope="col" className="px-6 py-3">Department</th>
-              <th scope="col" className="px-6 py-3">Manager</th>
-              <th scope="col" className="px-6 py-3">Users</th>
-              <th scope="col" className="px-6 py-3">Assets</th>
-              <th scope="col" className="px-6 py-3">Location</th>
-              <th scope="col" className="px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDepartments.map(dept => (
-                  <tr key={dept.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
-              <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
-                      <div className="flex items-center">
-                  <div className="p-2 mr-3 text-secondary bg-lightpurple rounded-full">
-                          <BuildingIcon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{dept.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(dept.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                  <div className="p-1 mr-2 text-gray-400 bg-lightgreen rounded-full">
-                          <UsersIcon className="w-4 h-4" />
-                        </div>
-                        <span>{dept.manager}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">
-                        {dept.user_count}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <span className="px-2 py-1 text-xs font-medium text-secondary bg-lightpurple rounded-full">
-                          {dept.asset_count}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-500">{dept.asset_value}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">{dept.location}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedDepartment(dept);
-                            setNewDepartment({
-                              name: dept.name,
-                              description: dept.description,
-                              location: dept.location,
-                              manager: dept.manager !== 'Unassigned' ? dept.manager : ''
-                            });
-                            setShowEditDepartmentModal(true);
-                          }}
-                          className="p-1 text-yellow-600 rounded hover:bg-yellow-100"
-                          title="Edit Department"
-                        >
-                          <EditIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedDepartment(dept);
-                            setShowDeleteModal(true);
-                          }}
-                          className="p-1 text-red-600 rounded hover:bg-red-100"
-                          title="Delete Department"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12">
-            {searchTerm ? (
-              <>
-                <AlertCircleIcon className="w-16 h-16 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-700">No matching departments found</h3>
-          <p className="mt-2 text-sm text-gray-500">Try adjusting your search criteria</p>
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90"
-                >
-                  Clear Search
-                </button>
-              </>
-            ) : (
-              <>
-                <BuildingIcon className="w-16 h-16 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-700">No departments found</h3>
-          <p className="mt-2 text-sm text-gray-500">Get started by adding your first department</p>
-                <button
-                  onClick={() => setShowAddDepartmentModal(true)}
-                  className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90"
-                >
-                  Add New Department
-                </button>
-              </>
-            )}
-          </div>
-        )}
+        </div>
+
+        {['Turnkey','Agencify','Caava AI'].map(rootName => {
+          const roots = departmentData.filter(d => !(d as any).parent_id && (d.name || '').trim().toLowerCase() === rootName.toLowerCase());
+          const anyMatch = departmentData.find(d => (d.name || '').trim().toLowerCase() === rootName.toLowerCase());
+          const root = roots[0] || anyMatch || null;
+          const children = root ? departmentData.filter(d => (d as any).parent_id && ((d as any).parent_id === (root as any).id)) : [];
+          return (
+            <div key={rootName} className="p-6 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 mr-3 text-secondary bg-lightpurple rounded-full"><BuildingIcon className="w-5 h-5" /></div>
+                  <div>
+                    <div className="font-semibold text-primary">{rootName}</div>
+                    <div className="text-xs text-gray-500">{root && root.created_at ? new Date(root.created_at).toLocaleDateString() : ''}</div>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      if (root) {
+                        setSelectedDepartment(root as any);
+                        setNewDepartment({ name: (root as any).name, description: (root as any).description, location: (root as any).location, manager: (root as any).manager !== 'Unassigned' ? (root as any).manager : '', parent_id: '' });
+                        setShowEditDepartmentModal(true);
+                      }
+                    }}
+                    className="p-1 text-yellow-600 rounded hover:bg-yellow-100"
+                    title="Edit Root Department"
+                  >
+                    <EditIcon className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {children.length > 0 ? (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
+                    <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
+                      <tr>
+                        <th className="px-6 py-3">Sub-Department</th>
+                        <th className="px-6 py-3">Manager</th>
+                        <th className="px-6 py-3">Users</th>
+                        <th className="px-6 py-3">Assets</th>
+                        <th className="px-6 py-3">Location</th>
+                        <th className="px-6 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {children.map(dept => (
+                        <tr key={dept.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
+                          <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">{dept.name}</td>
+                          <td className="px-6 py-4">{dept.manager}</td>
+                          <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">{dept.user_count}</span></td>
+                          <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-secondary bg-lightpurple rounded-full">{dept.asset_count}</span> <span className="ml-2 text-xs text-gray-500">{dept.asset_value}</span></td>
+                          <td className="px-6 py-4">{dept.location}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedDepartment(dept);
+                                  setNewDepartment({ name: dept.name, description: dept.description, location: dept.location, manager: dept.manager !== 'Unassigned' ? dept.manager : '', parent_id: (dept as any).parent_id || '' });
+                                  setShowEditDepartmentModal(true);
+                                }}
+                                className="p-1 text-yellow-600 rounded hover:bg-yellow-100"
+                                title="Edit Department"
+                              >
+                                <EditIcon className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => { setSelectedDepartment(dept); setShowDeleteModal(true); }}
+                                className="p-1 text-red-600 rounded hover:bg-red-100"
+                                title="Delete Department"
+                              >
+                                <TrashIcon className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="mt-4 text-sm text-gray-600">No sub-departments yet.</div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Non-primary roots or ungrouped items (optional) can be handled here if needed */}
       </div>
 
       {/* Add Department Modal */}
@@ -598,6 +607,22 @@ const DepartmentManagement: React.FC = () => {
                   onChange={(e) => setNewDepartment({ ...newDepartment, location: e.target.value })}
                   required
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2 text-sm font-medium text-primary">Parent Department (optional)</label>
+                <select
+                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={newDepartment.parent_id}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, parent_id: e.target.value })}
+                >
+                  <option value="">None (Root)</option>
+                  {departmentData
+                    .filter(d => !(d as any).parent_id)
+                    .filter(d => ['Turnkey','Agencify','Caava AI'].includes(d.name))
+                    .map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                </select>
               </div>
               <div className="mb-6">
                 <label className="block mb-2 text-sm font-medium text-primary">Manager</label>
@@ -672,6 +697,22 @@ const DepartmentManagement: React.FC = () => {
                   onChange={(e) => setNewDepartment({ ...newDepartment, location: e.target.value })}
                   required
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-2 text-sm font-medium text-primary">Parent Department (optional)</label>
+                <select
+                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  value={newDepartment.parent_id}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, parent_id: e.target.value })}
+                >
+                  <option value="">None (Root)</option>
+                  {departmentData
+                    .filter(d => !(d as any).parent_id)
+                    .filter(d => ['Turnkey','Agencify','Caava AI'].includes(d.name))
+                    .map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                </select>
               </div>
               <div className="mb-6">
                 <label className="block mb-2 text-sm font-medium text-primary">Manager</label>
