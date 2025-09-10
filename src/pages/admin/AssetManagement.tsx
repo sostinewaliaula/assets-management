@@ -52,6 +52,20 @@ const AssetManagement: React.FC = () => {
     notes: ''
   });
 
+  const recomputeDepartmentStats = async (departmentId: string | null) => {
+    try {
+      if (!departmentId) return;
+      const assetsInDept = await assetService.getByDepartment(departmentId);
+      const asset_count = assetsInDept.length;
+      const totalValue = assetsInDept.reduce((sum, a) => sum + (Number((a as any).current_value) || 0), 0);
+      await departmentService.update(departmentId, { asset_count, asset_value: formatKES(totalValue) } as any);
+      // reflect locally if we have departments loaded
+      setDepartments(prev => prev.map(d => d.id === departmentId ? { ...d, asset_count, asset_value: formatKES(totalValue) } as any : d));
+    } catch (e) {
+      console.warn('Failed to recompute department stats', e);
+    }
+  };
+
   // Fetch assets, departments, and users from database
   const fetchData = async () => {
     try {
@@ -391,6 +405,8 @@ const AssetManagement: React.FC = () => {
       
     // Add the new asset to the list
       setAssets([newAssetData, ...assets]);
+      // update department stats for assigned department
+      await recomputeDepartmentStats(newAssetData.department_id || null);
       
       // Notify assigned user if asset is assigned at creation
       try {
@@ -462,6 +478,7 @@ const AssetManagement: React.FC = () => {
       // Capture previous assignment
       const previous = assets.find(a => a.id === editingAsset.id);
       const previousAssignedTo = previous?.assigned_to || null;
+      const previousDeptId = previous?.department_id || null;
       // Update the asset in the database
       const updatedAsset = await assetService.update(editingAsset.id, editingAsset);
       
@@ -470,6 +487,17 @@ const AssetManagement: React.FC = () => {
         asset.id === editingAsset.id ? updatedAsset : asset
       );
       setAssets(updatedAssets);
+
+      // Recompute department stats if department changed
+      const newDeptId = updatedAsset.department_id || null;
+      if (previousDeptId !== newDeptId) {
+        await Promise.all([
+          recomputeDepartmentStats(previousDeptId),
+          recomputeDepartmentStats(newDeptId)
+        ]);
+      } else {
+        await recomputeDepartmentStats(newDeptId);
+      }
       
       // If assignment changed and now assigned, notify the new user
       try {
@@ -520,11 +548,13 @@ const AssetManagement: React.FC = () => {
     
     try {
       // Delete the asset from the database
+      const deptId = selectedAsset.department_id || null;
       await assetService.delete(selectedAsset.id);
       
     // Filter out the selected asset
     const updatedAssets = assets.filter(asset => asset.id !== selectedAsset.id);
     setAssets(updatedAssets);
+    await recomputeDepartmentStats(deptId);
       
     // Show a notification
     addNotification({

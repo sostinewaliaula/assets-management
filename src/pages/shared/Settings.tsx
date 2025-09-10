@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { supabase } from '../../lib/supabase';
@@ -93,6 +94,13 @@ const Settings: React.FC = () => {
 
       {/* Notification Preferences */}
       <NotificationPreferences />
+
+      {/* Two-Factor Authentication */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Two-Factor Authentication</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Add an extra layer of security to your account by enabling 2FA.</p>
+        <Link to="/settings/security" className="button-primary inline-block px-4 py-2 text-sm font-medium">Manage 2FA</Link>
+      </div>
 
       {/* Change Password */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6">

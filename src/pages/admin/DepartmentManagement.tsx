@@ -31,6 +31,14 @@ const DepartmentManagement: React.FC = () => {
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
   const importInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const parseAssetValueToNumber = (value: any) => {
+    if (value == null) return 0;
+    if (typeof value === 'number') return value;
+    const cleaned = String(value).replace(/[^0-9.-]+/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  };
+
   // Fetch departments and users from database
     const fetchData = async () => {
       try {
@@ -340,7 +348,7 @@ const DepartmentManagement: React.FC = () => {
                 const headers = ['name','description','location','manager','user_count','asset_count','asset_value','created_at'];
                 const rows: string[] = [headers.join(',')];
                 for (const d of data) {
-                  const row = [d.name,d.description,d.location,d.manager,String((d as any).user_count ?? ''),String((d as any).asset_count ?? ''),formatKES(Number((d as any).asset_value) || 0), fmtDate(d.created_at)]
+                  const row = [d.name,d.description,d.location,d.manager,String((d as any).user_count ?? ''),String((d as any).asset_count ?? ''),formatKES(parseAssetValueToNumber((d as any).asset_value)), fmtDate(d.created_at)]
                     .map(v => { const s = String(v ?? ''); return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',');
                   rows.push(row);
                 }
@@ -354,7 +362,7 @@ const DepartmentManagement: React.FC = () => {
                   const headers = ['name','description','location','manager','user_count','asset_count','asset_value','created_at'];
                   const escapeHtml = (s: any) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
                   const thead = `<thead><tr>${headers.map(h => `<th style=\"text-align:left;border:1px solid #ccc;padding:6px;\">${h}</th>`).join('')}</tr></thead>`;
-                  const tbody = `<tbody>${items.map(d => `<tr>${[d.name,d.description,d.location,d.manager,String((d as any).user_count ?? ''),String((d as any).asset_count ?? ''),formatKES(Number((d as any).asset_value) || 0), fmtDate(d.created_at)].map(v => `<td style=\"border:1px solid #ccc;padding:6px;\">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+                  const tbody = `<tbody>${items.map(d => `<tr>${[d.name,d.description,d.location,d.manager,String((d as any).user_count ?? ''),String((d as any).asset_count ?? ''),formatKES(parseAssetValueToNumber((d as any).asset_value)), fmtDate(d.created_at)].map(v => `<td style=\"border:1px solid #ccc;padding:6px;\">${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
                   return `<table style=\"border-collapse:collapse;font-family:Arial, sans-serif;font-size:12px;\">${thead}${tbody}</table>`;
                 };
                 const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\" /></head><body>${buildHtmlTable(data)}</body></html>`;
@@ -382,13 +390,13 @@ const DepartmentManagement: React.FC = () => {
                 const headerH = measureRowHeight(headers); if (y + headerH > pageHeight - margin) { doc.addPage(); y = margin; }
                 drawRow(headers, true);
                 for (const d of data) {
-                  const cells = [d.name, d.description, d.location, d.manager, String((d as any).user_count ?? ''), String((d as any).asset_count ?? ''), formatKES(Number((d as any).asset_value) || 0), d.created_at || ''];
+                  const cells = [d.name, d.description, d.location, d.manager, String((d as any).user_count ?? ''), String((d as any).asset_count ?? ''), formatKES(parseAssetValueToNumber((d as any).asset_value)), d.created_at || ''];
                   const nextH = measureRowHeight(cells); if (y + nextH > pageHeight - margin) { doc.addPage(); y = margin; drawRow(headers, true); }
                   drawRow(cells);
                 }
                 const fname = `Departments_${new Date().toISOString().slice(0,10)}.pdf`; doc.save(fname);
               } else {
-                const lines = data.map(d => `${d.name}\t${d.location}\t${d.manager}`);
+                const lines = data.map(d => `${d.name}\t${d.location}\t${d.manager}\t${formatKES(parseAssetValueToNumber((d as any).asset_value))}`);
                 const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8;' });
                 const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.setAttribute('download', `departments_export_${Date.now()}.txt`); document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
               }
@@ -534,7 +542,7 @@ const DepartmentManagement: React.FC = () => {
                           <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">{dept.name}</td>
                           <td className="px-6 py-4">{dept.manager}</td>
                           <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">{dept.user_count}</span></td>
-                          <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-secondary bg-lightpurple rounded-full">{dept.asset_count}</span> <span className="ml-2 text-xs text-gray-500">{formatKES(Number(dept.asset_value) || 0)}</span></td>
+                          <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-secondary bg-lightpurple rounded-full">{dept.asset_count}</span> <span className="ml-2 text-xs text-gray-500">{formatKES(parseAssetValueToNumber((dept as any).asset_value))}</span></td>
                           <td className="px-6 py-4">{dept.location}</td>
                           <td className="px-6 py-4">
                             <div className="flex space-x-2">

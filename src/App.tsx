@@ -26,6 +26,7 @@ import AssetDetails from './pages/shared/AssetDetails';
 import QrScanner from './pages/shared/QrScanner';
 import NotificationsPage from './pages/shared/NotificationsPage';
 import Settings from './pages/shared/Settings';
+import SecuritySettings from './pages/settings/SecuritySettings';
 import UserIssueDetail from './pages/user/UserIssueDetail';
 import Profile from './pages/shared/Profile';
 import { supabase } from './lib/supabase';
@@ -160,6 +161,7 @@ function App() {
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/security" element={<SecuritySettings />} />
               </Route>
             </Routes>
           </Router>

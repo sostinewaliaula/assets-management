@@ -38,6 +38,18 @@ const AssetDetails: React.FC = () => {
   const [qrUrl, setQrUrl] = useState<string>('');
   const qrRef = useRef<HTMLDivElement | null>(null);
 
+  const recomputeDepartmentStats = async (departmentId: string | null) => {
+    try {
+      if (!departmentId) return;
+      const assetsInDept = await assetService.getByDepartment(departmentId);
+      const asset_count = assetsInDept.length;
+      const totalValue = assetsInDept.reduce((sum, a) => sum + (Number((a as any).current_value) || 0), 0);
+      await departmentService.update(departmentId, { asset_count, asset_value: formatKES(totalValue) } as any);
+    } catch (e) {
+      console.warn('Failed to recompute department stats', e);
+    }
+  };
+
   useEffect(() => {
     const fetchAssetDetails = async () => {
       try {
@@ -352,8 +364,18 @@ const AssetDetails: React.FC = () => {
     if (!editingAsset) return;
     setIsUpdating(true);
     try {
+      const previousDeptId = asset?.department_id || null;
       const updated = await assetService.update(editingAsset.id, editingAsset);
       setAsset(updated);
+      const newDeptId = updated.department_id || null;
+      if (previousDeptId !== newDeptId) {
+        await Promise.all([
+          recomputeDepartmentStats(previousDeptId),
+          recomputeDepartmentStats(newDeptId)
+        ]);
+      } else {
+        await recomputeDepartmentStats(newDeptId);
+      }
       setShowEditAssetModal(false);
       setEditingAsset(null);
       addNotification({

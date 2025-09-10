@@ -18,7 +18,12 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ mfaRequired?: boolean; factors?: Array<{ id: string; type: string }>; }>;
+  verifyMfa: (params: { factorId: string; code: string; challengeId?: string }) => Promise<void>;
+  startEnrollTotp: () => Promise<{ factorId: string; qrCode?: string; otpauthUrl?: string }>; 
+  verifyEnrollTotp: (params: { factorId: string; code: string }) => Promise<void>;
+  disableTotp: (factorId: string) => Promise<void>;
+  listMfaFactors: () => Promise<Array<{ id: string; type: string; friendlyName?: string; status?: string }>>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (password: string) => Promise<void>;
@@ -128,6 +133,11 @@ export const AuthProvider: React.FC<{
       if (error) {
         throw error;
       }
+      // MFA check: if session missing but factors present, require MFA
+      if (!data.session && (data?.user?.factors?.length || 0) > 0) {
+        const factors = (data.user as any).factors?.map((f: any) => ({ id: f.id, type: f.factor_type })) || [];
+        return { mfaRequired: true, factors };
+      }
 
       if (data.user) {
         const userData = await convertSupabaseUser(data.user);
@@ -136,12 +146,70 @@ export const AuthProvider: React.FC<{
         }
         setUser(userData);
       }
+      return {};
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Verify MFA after password sign-in
+  const verifyMfa = async ({ factorId, code, challengeId }: { factorId: string; code: string; challengeId?: string }) => {
+    // Create a challenge if not provided
+    const challengeRes = challengeId ? { data: { id: challengeId } } : await supabase.auth.mfa.challenge({ factorId });
+    const challenge = (challengeRes as any).data;
+    if (!challenge || !challenge.id) throw new Error('MFA challenge could not be created');
+    const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code });
+    if (error) throw error as any;
+    // After verification, set user from current session
+    const { data: sessionRes } = await supabase.auth.getSession();
+    const supaUser = sessionRes.session?.user;
+    if (supaUser) {
+      const userData = await convertSupabaseUser(supaUser);
+      setUser(userData);
+    }
+  };
+
+  // Begin TOTP enrollment and return QR data
+  const startEnrollTotp = async (): Promise<{ factorId: string; qrCode?: string; otpauthUrl?: string }> => {
+    const friendlyName = `Authenticator ${new Date().toISOString()}`;
+    const { data, error } = await (supabase.auth as any).mfa.enroll({ factorType: 'totp', friendlyName });
+    if (error) throw error;
+    // Support different SDK shapes
+    const factorId = (data?.id) || (data?.factor?.id);
+    const qr = data?.totp?.qr_code || data?.qr_code;
+    const uri = data?.totp?.uri || data?.totp?.otpauth_url || data?.otpauth_url;
+    if (!factorId) throw new Error('Could not retrieve TOTP factor ID from enrollment');
+    return { factorId, qrCode: qr, otpauthUrl: uri };
+  };
+
+  // Verify enrollment with a code to activate the factor
+  const verifyEnrollTotp = async ({ factorId, code }: { factorId: string; code: string }) => {
+    const cleaned = (code || '').replace(/\s+/g, '');
+    const mfa = (supabase.auth as any).mfa;
+    if (typeof mfa.verifyFactor === 'function') {
+      const { error } = await mfa.verifyFactor({ factorId, code: cleaned });
+      if (error) throw error;
+    } else {
+      const { error } = await mfa.verify({ factorId, code: cleaned });
+      if (error) throw error;
+    }
+  };
+
+  // Disable a TOTP factor
+  const disableTotp = async (factorId: string) => {
+    const { error } = await (supabase.auth as any).mfa.unenroll({ factorId });
+    if (error) throw error;
+  };
+
+  // List existing MFA factors (TOTP/WebAuthn)
+  const listMfaFactors = async (): Promise<Array<{ id: string; type: string; friendlyName?: string; status?: string }>> => {
+    const { data, error } = await (supabase.auth as any).mfa.listFactors();
+    if (error) throw error;
+    const factors = (data?.factors || data?.all || []) as any[];
+    return factors.map((f: any) => ({ id: f.id, type: f.factor_type || f.type, friendlyName: f.friendly_name || f.friendlyName, status: f.status }));
   };
 
   // Logout function
@@ -205,6 +273,11 @@ export const AuthProvider: React.FC<{
     isAuthenticated: !!user,
     isLoading,
     login,
+    verifyMfa,
+    startEnrollTotp,
+    verifyEnrollTotp,
+    disableTotp,
+    listMfaFactors,
     logout,
     forgotPassword,
     resetPassword
