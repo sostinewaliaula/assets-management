@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, PlusIcon, EditIcon, TrashIcon, XCircleIcon, BuildingIcon, RefreshCwIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 import Logo from '../../assets/logo.png';
-import { departmentService } from '../../services/database';
-import { Department } from '../../lib/supabase';
+import { departmentService, userService } from '../../services/database';
+import { Department, User } from '../../lib/supabase';
 import { formatKES } from '../../utils/formatCurrency';
 
 const DepartmentManagement: React.FC = () => {
@@ -18,24 +18,30 @@ const DepartmentManagement: React.FC = () => {
   const [showEditDepartmentModal, setShowEditDepartmentModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   const [newDepartment, setNewDepartment] = useState({
     name: '',
     description: '',
     location: '',
     manager: '',
+    manager_id: '' as string | '',
     parent_id: '' as string | ''
   });
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
   const importInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  // Fetch departments from database
+  // Fetch departments and users from database
     const fetchData = async () => {
       try {
       setLoading(true);
-      const departments = await departmentService.getAll();
+      const [departments, fetchedUsers] = await Promise.all([
+        departmentService.getAll(),
+        userService.getAll()
+      ]);
       setDepartmentData(departments);
       setFilteredDepartments(departments);
+      setUsers(fetchedUsers);
       // Ensure primary roots exist
       const primaryNames = ['Turnkey','Agencify','Caava AI'];
       const existingRoots = new Set(
@@ -129,15 +135,16 @@ const DepartmentManagement: React.FC = () => {
     e.preventDefault();
     try {
     // Create the new department object
+    const selectedManager = users.find(u => u.id === newDepartment.manager_id);
     const departmentToAdd = {
       name: newDepartment.name,
       description: newDepartment.description,
       location: newDepartment.location,
-        user_count: 0,
-        asset_count: 0,
-        asset_value: 0,
-      manager: newDepartment.manager || 'Unassigned',
-        manager_id: null,
+      user_count: 0,
+      asset_count: 0,
+      asset_value: '0',
+      manager: selectedManager ? (selectedManager.name || selectedManager.email) : (newDepartment.manager || 'Unassigned'),
+      manager_id: newDepartment.manager_id ? newDepartment.manager_id : null,
       parent_id: newDepartment.parent_id || null
     };
 
@@ -153,6 +160,7 @@ const DepartmentManagement: React.FC = () => {
       description: '',
       location: '',
       manager: '',
+      manager_id: '',
       parent_id: ''
     });
       
@@ -188,12 +196,14 @@ const DepartmentManagement: React.FC = () => {
     
     try {
       // Update the department in the database
+      const selectedManager = users.find(u => u.id === newDepartment.manager_id);
       const updatedDepartment = await departmentService.update(selectedDepartment.id, ({
-      name: newDepartment.name,
-      description: newDepartment.description,
-      location: newDepartment.location,
-      manager: newDepartment.manager || selectedDepartment.manager,
-      parent_id: newDepartment.parent_id || null
+        name: newDepartment.name,
+        description: newDepartment.description,
+        location: newDepartment.location,
+        manager: selectedManager ? (selectedManager.name || selectedManager.email) : (newDepartment.manager || selectedDepartment.manager),
+        manager_id: newDepartment.manager_id ? newDepartment.manager_id : null,
+        parent_id: newDepartment.parent_id || null
       } as any));
 
       // Update the department in the list
@@ -211,6 +221,7 @@ const DepartmentManagement: React.FC = () => {
       description: '',
       location: '',
       manager: '',
+      manager_id: '',
       parent_id: ''
     });
       
@@ -492,7 +503,7 @@ const DepartmentManagement: React.FC = () => {
                     onClick={() => {
                       if (root) {
                         setSelectedDepartment(root as any);
-                        setNewDepartment({ name: (root as any).name, description: (root as any).description, location: (root as any).location, manager: (root as any).manager !== 'Unassigned' ? (root as any).manager : '', parent_id: '' });
+                        setNewDepartment({ name: (root as any).name, description: (root as any).description, location: (root as any).location, manager: (root as any).manager !== 'Unassigned' ? (root as any).manager : '', manager_id: ((root as any).manager_id as any) || '', parent_id: '' });
                         setShowEditDepartmentModal(true);
                       }
                     }}
@@ -530,7 +541,7 @@ const DepartmentManagement: React.FC = () => {
                               <button
                                 onClick={() => {
                                   setSelectedDepartment(dept);
-                                  setNewDepartment({ name: dept.name, description: dept.description, location: dept.location, manager: dept.manager !== 'Unassigned' ? dept.manager : '', parent_id: (dept as any).parent_id || '' });
+                                  setNewDepartment({ name: dept.name, description: dept.description, location: dept.location, manager: dept.manager !== 'Unassigned' ? dept.manager : '', manager_id: ((dept as any).manager_id as any) || '', parent_id: (dept as any).parent_id || '' });
                                   setShowEditDepartmentModal(true);
                                 }}
                                 className="p-1 text-yellow-600 rounded hover:bg-yellow-100"
@@ -627,13 +638,16 @@ const DepartmentManagement: React.FC = () => {
               </div>
               <div className="mb-6">
                 <label className="block mb-2 text-sm font-medium text-primary">Manager</label>
-                <input
-                  type="text"
+                <select
                   className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="e.g. John Doe"
-                  value={newDepartment.manager}
-                  onChange={(e) => setNewDepartment({ ...newDepartment, manager: e.target.value })}
-                />
+                  value={newDepartment.manager_id}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, manager_id: e.target.value })}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex space-x-3">
                 <button
@@ -717,12 +731,16 @@ const DepartmentManagement: React.FC = () => {
               </div>
               <div className="mb-6">
                 <label className="block mb-2 text-sm font-medium text-primary">Manager</label>
-                <input
-                  type="text"
+                <select
                   className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  value={newDepartment.manager}
-                  onChange={(e) => setNewDepartment({ ...newDepartment, manager: e.target.value })}
-                />
+                  value={newDepartment.manager_id}
+                  onChange={(e) => setNewDepartment({ ...newDepartment, manager_id: e.target.value })}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex space-x-3">
                 <button
