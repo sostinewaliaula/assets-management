@@ -7,7 +7,7 @@ import NotificationPreferences from '../../components/ui/NotificationPreferences
 import { EyeIcon, EyeOffIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 
 const Settings: React.FC = () => {
-  const { user } = useAuth();
+  const { user, startEnrollTotp, verifyEnrollTotp, disableTotp, listMfaFactors } = useAuth();
   const { addToast, addNotification } = useNotifications();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -17,6 +17,12 @@ const Settings: React.FC = () => {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  // 2FA state
+  const [mfaStatus, setMfaStatus] = useState<'idle' | 'enrolling' | 'verifying' | 'enabled'>('idle');
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [factors, setFactors] = useState<Array<{ id: string; type: string; friendlyName?: string; status?: string }>>([]);
+  const [enrollData, setEnrollData] = useState<{ factorId: string; qr?: string; uri?: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   const passwordChecks = useMemo(() => {
     const len = newPassword.length >= 8;
@@ -27,6 +33,84 @@ const Settings: React.FC = () => {
     const match = !!newPassword && confirmPassword === newPassword;
     return { len, upper, lower, num, special, match };
   }, [newPassword, confirmPassword]);
+
+  // Load factors
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const list = await listMfaFactors();
+        setFactors(list);
+        if (list.some(f => f.type === 'totp' && f.status === 'verified')) setMfaStatus('enabled');
+      } catch {}
+    })();
+  }, [listMfaFactors]);
+
+  const beginEnroll = async () => {
+    setMfaError(null);
+    setMfaStatus('enrolling');
+    try {
+      const res = await startEnrollTotp();
+      setEnrollData({ factorId: res.factorId, qr: res.qrCode, uri: res.otpauthUrl });
+    } catch (e: any) {
+      const msg = String(e?.message || 'Failed to start enrollment');
+      if (msg.toLowerCase().includes('already exists')) {
+        setMfaError('You already have a 2FA factor. Disable the existing factor first.');
+      } else {
+        setMfaError(msg);
+      }
+      setMfaStatus('idle');
+    }
+  };
+
+  const verifyMfaEnroll = async () => {
+    if (!enrollData) return;
+    setMfaError(null);
+    setMfaStatus('verifying');
+    try {
+      const cleaned = mfaCode.replace(/\s+/g, '');
+      await verifyEnrollTotp({ factorId: enrollData.factorId, code: cleaned });
+      setFactors(await listMfaFactors());
+      setMfaStatus('enabled');
+    } catch (e: any) {
+      const msg = String(e?.message || 'Verification failed');
+      if (/challenge id/i.test(msg)) {
+        setMfaError('The enrollment session expired. Click Enable 2FA to start again, rescan, and enter a fresh code.');
+      } else {
+        setMfaError(msg);
+      }
+      setMfaStatus('enrolling');
+    }
+  };
+
+  const disableById = async (factorId: string) => {
+    setMfaError(null);
+    try {
+      await disableTotp(factorId);
+      const updated = await listMfaFactors();
+      setFactors(updated);
+      if (!updated.some(f => f.type === 'totp' && f.status === 'verified')) setMfaStatus('idle');
+    } catch (e: any) {
+      setMfaError(e?.message || 'Failed to disable factor');
+    }
+  };
+
+  const disableAllTotp = async () => {
+    setMfaError(null);
+    try {
+      const current = await listMfaFactors();
+      const totps = current.filter(f => f.type === 'totp');
+      for (const f of totps) {
+        await disableTotp(f.id);
+      }
+      const updated = await listMfaFactors();
+      setFactors(updated);
+      setMfaStatus('idle');
+      setEnrollData(null);
+      setMfaCode('');
+    } catch (e: any) {
+      setMfaError(e?.message || 'Failed to disable all TOTP factors');
+    }
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,11 +191,58 @@ const Settings: React.FC = () => {
       {/* Notification Preferences */}
       <NotificationPreferences />
 
-      {/* Two-Factor Authentication */}
+      {/* Two-Factor Authentication (inline) */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Two-Factor Authentication</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-4">Add an extra layer of security to your account by enabling 2FA.</p>
-        <Link to="/settings/security" className="button-primary inline-block px-4 py-2 text-sm font-medium">Manage 2FA</Link>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Protect your account with TOTP (Google/Microsoft Authenticator).</p>
+        {mfaStatus === 'idle' && (
+          <div className="flex items-center gap-2">
+            <button onClick={beginEnroll} className="button-primary px-4 py-2 text-sm font-medium">Enable 2FA</button>
+            {factors.length > 0 && <button onClick={disableAllTotp} className="px-4 py-2 text-sm font-medium border rounded-xl">Disable All TOTP</button>}
+          </div>
+        )}
+        {enrollData && (
+          <div className="mt-4 space-y-3">
+            <div>
+              <h3 className="font-semibold text-primary">Step 1: Scan QR Code</h3>
+              {enrollData.qr ? (
+                <img src={enrollData.qr} alt="TOTP QR" className="mt-2 w-56 h-56 bg-white p-2 rounded" />
+              ) : (
+                <div className="mt-2 text-sm text-gray-600 break-all">{enrollData.uri}</div>
+              )}
+            </div>
+            <div>
+              <h3 className="font-semibold text-primary">Step 2: Enter 6-digit Code</h3>
+              <input value={mfaCode} onChange={e => setMfaCode(e.target.value)} placeholder="123456" className="mt-2 block w-40 px-3 py-2 border rounded-xl" />
+              <div className="mt-2 flex gap-2">
+                <button onClick={verifyMfaEnroll} className="button-primary px-4 py-2 text-sm" disabled={!mfaCode || mfaStatus==='verifying'}>
+                  {mfaStatus==='verifying' ? 'Verifying…' : 'Verify & Activate'}
+                </button>
+                <button onClick={disableAllTotp} className="px-4 py-2 text-sm border rounded-xl">Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {mfaStatus === 'enabled' && (
+          <div className="mt-4 p-3 bg-lightgreen rounded-xl text-primary">Two-factor authentication is enabled.</div>
+        )}
+        {factors.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-2 flex items-center gap-2">
+              <h3 className="font-semibold text-primary">Your MFA Factors</h3>
+              <button onClick={async ()=> setFactors(await listMfaFactors())} className="px-3 py-1 text-xs border rounded-xl">Refresh</button>
+            </div>
+            <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              {factors.map(f => (
+                <li key={f.id} className="flex items-center justify-between">
+                  <span>{(f.friendlyName || f.type)} — {f.status || 'pending'}</span>
+                  {f.type === 'totp' && <button onClick={() => disableById(f.id)} className="text-red-600 text-xs">Disable</button>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {mfaError && <div className="mt-3 text-sm text-red-600">{mfaError}</div>}
       </div>
 
       {/* Change Password */}
