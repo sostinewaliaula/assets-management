@@ -7,9 +7,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5000,
-    // allowedHosts: [
-    //   'it.internal.services'
-    //   'it-assets.caavagroup.com'
-    // ]
+    allowedHosts: [
+      'it-assets.caavagroup.com'
+    ]
   }
 })
