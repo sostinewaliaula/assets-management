@@ -43,7 +43,23 @@ const UserDashboard: React.FC = () => {
 
         // Fetch issues reported by the current user (latest 5)
         const reportedIssues = await issueService.getByReporter(user.id, 5);
-        setIssues(reportedIssues);
+        // Enrich with asset names
+        const assetIds = Array.from(new Set((reportedIssues || []).map((i: any) => i.asset_id).filter(Boolean)));
+        let idToAssetName = new Map<string, string>();
+        if (assetIds.length > 0) {
+          try {
+            const { data: assetsForIssues } = await (await import('../../lib/supabase')).supabase
+              .from('assets')
+              .select('id,name')
+              .in('id', assetIds as any);
+            (assetsForIssues || []).forEach((a: any) => idToAssetName.set(a.id, a.name));
+          } catch {}
+        }
+        const enriched = (reportedIssues || []).map((i: any) => ({
+          ...i,
+          assetName: i.asset_id ? (idToAssetName.get(i.asset_id) || i.asset_id) : 'No Asset'
+        }));
+        setIssues(enriched);
 
         // Keep UX toast but don't include it in dependencies to avoid loops
         addToast({
@@ -383,10 +399,14 @@ const UserDashboard: React.FC = () => {
                 </div>
               </td>
               <td className="px-6 py-4">
-                    <Link to={`/assets/${issue.asset_id}`} className="flex items-center">
-                      <img src={"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"} alt={issue.asset_id} className="w-8 h-8 mr-2 rounded-xl" />
-                      <span className="truncate max-w-[150px]">{issue.asset_id}</span>
-                </Link>
+                {issue.asset_id ? (
+                  <Link to={`/assets/${issue.asset_id}`} className="flex items-center">
+                    <img src={"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"} alt={issue.assetName} className="w-8 h-8 mr-2 rounded-xl" />
+                    <span className="truncate max-w-[150px]">{issue.assetName}</span>
+                  </Link>
+                ) : (
+                  <span className="text-gray-400">No Asset</span>
+                )}
               </td>
               <td className="px-6 py-4">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(issue.status)}`}>{issue.status}</span>

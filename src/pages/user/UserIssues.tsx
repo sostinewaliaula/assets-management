@@ -52,8 +52,24 @@ const UserIssues: React.FC = () => {
             .order('created_at', { ascending: false });
         });
         if (issueError) throw issueError;
-        setIssues(issueData || []);
-        setFilteredIssues(issueData || []);
+        // Enrich with asset names
+        const assetIds = Array.from(new Set((issueData || []).map((i: any) => i.asset_id).filter(Boolean)));
+        let idToAssetName = new Map<string, string>();
+        if (assetIds.length > 0) {
+          const { data: assetsForIssues } = await supabase
+            .from('assets')
+            .select('id,name')
+            .in('id', assetIds as any);
+          (assetsForIssues || []).forEach((a: any) => idToAssetName.set(a.id, a.name));
+        }
+        const enriched = (issueData || []).map((i: any) => ({
+          ...i,
+          assetName: i.asset_id ? (idToAssetName.get(i.asset_id) || i.asset_id) : 'No Asset',
+          assetId: i.asset_id,
+          assetImage: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"
+        }));
+        setIssues(enriched);
+        setFilteredIssues(enriched);
       } catch (error) {
         console.error('Error fetching data:', error);
         addNotification({
@@ -76,7 +92,7 @@ const UserIssues: React.FC = () => {
     // Filter issues based on search term and filters
     let result = issues;
     if (searchTerm) {
-      result = result.filter(issue => issue.title.toLowerCase().includes(searchTerm.toLowerCase()) || issue.description.toLowerCase().includes(searchTerm.toLowerCase()) || issue.assetName.toLowerCase().includes(searchTerm.toLowerCase()));
+      result = result.filter(issue => issue.title.toLowerCase().includes(searchTerm.toLowerCase()) || issue.description.toLowerCase().includes(searchTerm.toLowerCase()) || (issue.assetName || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }
     if (filterStatus !== 'All') {
       result = result.filter(issue => issue.status === filterStatus);

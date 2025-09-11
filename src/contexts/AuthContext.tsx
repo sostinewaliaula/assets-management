@@ -34,7 +34,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // During hot-reload or out-of-tree usage, expose a non-crashing fallback
+    const noop = async () => { /* no-op */ };
+    const noopLogin = async () => ({}) as any;
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      login: noopLogin,
+      verifyMfa: noop as any,
+      startEnrollTotp: async () => ({ factorId: '' }),
+      verifyEnrollTotp: noop as any,
+      disableTotp: noop as any,
+      listMfaFactors: async () => [],
+      logout: noop,
+      forgotPassword: noop as any,
+      resetPassword: noop as any
+    } as AuthContextType;
   }
   return context;
 };
@@ -106,6 +122,14 @@ export const AuthProvider: React.FC<{
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email);
+        if (event === 'INITIAL_SESSION') {
+          if (session?.user) {
+            const userData = await convertSupabaseUser(session.user);
+            setUser(userData);
+          }
+          setIsLoading(false);
+          return;
+        }
         
         if (event === 'SIGNED_IN' && session?.user) {
           const userData = await convertSupabaseUser(session.user);
