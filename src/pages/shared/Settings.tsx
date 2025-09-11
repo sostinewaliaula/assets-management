@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { supabase } from '../../lib/supabase';
 import NotificationPreferences from '../../components/ui/NotificationPreferences';
+import { EyeIcon, EyeOffIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +14,19 @@ const Settings: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const passwordChecks = useMemo(() => {
+    const len = newPassword.length >= 8;
+    const upper = /[A-Z]/.test(newPassword);
+    const lower = /[a-z]/.test(newPassword);
+    const num = /[0-9]/.test(newPassword);
+    const special = /[^A-Za-z0-9]/.test(newPassword);
+    const match = !!newPassword && confirmPassword === newPassword;
+    return { len, upper, lower, num, special, match };
+  }, [newPassword, confirmPassword]);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,14 +37,12 @@ const Settings: React.FC = () => {
       addToast({ title: 'Missing fields', message: 'Please fill in all password fields.', type: 'warning' });
       return;
     }
-
-    if (newPassword.length < 8) {
-      addNotification({ title: 'Weak password', message: 'Password must be at least 8 characters long.', type: 'warning' });
-      addToast({ title: 'Weak password', message: 'Password must be at least 8 characters long.', type: 'warning' });
+    if (!(passwordChecks.len && passwordChecks.upper && passwordChecks.lower && passwordChecks.num && passwordChecks.special)) {
+      addNotification({ title: 'Weak password', message: 'Password does not meet complexity requirements.', type: 'warning' });
+      addToast({ title: 'Weak password', message: 'Password does not meet complexity requirements.', type: 'warning' });
       return;
     }
-
-    if (newPassword !== confirmPassword) {
+    if (!passwordChecks.match) {
       addNotification({ title: 'Password mismatch', message: 'New password and confirmation do not match.', type: 'error' });
       addToast({ title: 'Password mismatch', message: 'New password and confirmation do not match.', type: 'error' });
       return;
@@ -112,41 +124,78 @@ const Settings: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Current Password
             </label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Enter current password"
-            />
+            <div className="relative">
+              <input
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="block w-full pr-10 px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Enter current password"
+              />
+              <button type="button" onClick={() => setShowCurrent(s => !s)} className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700">
+                {showCurrent ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               New Password
             </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="At least 8 characters"
-              minLength={8}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="block w-full pr-10 px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Strong password"
+                required
+              />
+              <button type="button" onClick={() => setShowNew(s => !s)} className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700">
+                {showNew ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+              </button>
+            </div>
+            {/* Requirements indicator */}
+            <ul className="mt-2 space-y-1 text-xs">
+              <li className={`flex items-center ${passwordChecks.len ? 'text-green-600' : 'text-gray-500'}`}>
+                {passwordChecks.len ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />} At least 8 characters
+              </li>
+              <li className={`flex items-center ${passwordChecks.upper ? 'text-green-600' : 'text-gray-500'}`}>
+                {passwordChecks.upper ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />} Contains an uppercase letter
+              </li>
+              <li className={`flex items-center ${passwordChecks.lower ? 'text-green-600' : 'text-gray-500'}`}>
+                {passwordChecks.lower ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />} Contains a lowercase letter
+              </li>
+              <li className={`flex items-center ${passwordChecks.num ? 'text-green-600' : 'text-gray-500'}`}>
+                {passwordChecks.num ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />} Contains a number
+              </li>
+              <li className={`flex items-center ${passwordChecks.special ? 'text-green-600' : 'text-gray-500'}`}>
+                {passwordChecks.special ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />} Contains a special character
+              </li>
+            </ul>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Confirm New Password
             </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Re-enter new password"
-              minLength={8}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showConfirm ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="block w-full pr-10 px-4 py-2 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="Re-enter new password"
+                required
+              />
+              <button type="button" onClick={() => setShowConfirm(s => !s)} className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700">
+                {showConfirm ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+              </button>
+            </div>
+            {confirmPassword && (
+              <div className={`mt-2 text-xs flex items-center ${passwordChecks.match ? 'text-green-600' : 'text-red-600'}`}>
+                {passwordChecks.match ? <CheckCircleIcon className="w-4 h-4 mr-1" /> : <XCircleIcon className="w-4 h-4 mr-1" />}
+                {passwordChecks.match ? 'Passwords match' : 'Passwords do not match'}
+              </div>
+            )}
           </div>
           <div className="flex justify-end">
             <button
