@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, ClockIcon, CalendarIcon, MapPinIcon, UserIcon, TagIcon, BarChart2Icon, AlertTriangleIcon, PlusIcon, CheckCircleIcon, XCircleIcon, WifiIcon, WifiOffIcon } from 'lucide-react';
-import { assetService, userService, departmentService, issueService, notificationService } from '../../services/database';
+import { assetService, userService, departmentService, issueService, notificationService, auditService } from '../../services/database';
 import { Asset, User, Department, Issue, supabase } from '../../lib/supabase';
 import QRCode from 'react-qr-code';
 import { formatKES } from '../../utils/formatCurrency';
@@ -366,6 +366,7 @@ const AssetDetails: React.FC = () => {
     try {
       const previousDeptId = asset?.department_id || null;
       const updated = await assetService.update(editingAsset.id, editingAsset);
+      try { await auditService.write({ user_id: user?.id || null, action: 'asset.update_user', entity_type: 'asset', entity_id: updated.id, details: { after: updated } }); } catch {}
       setAsset(updated);
       const newDeptId = updated.department_id || null;
       if (previousDeptId !== newDeptId) {

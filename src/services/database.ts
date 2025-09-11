@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { emailNotificationService, EmailNotificationData } from './emailNotificationService';
-import { Asset, Department, User, Issue, IssueComment, AssetMaintenance, NotificationRecord } from '../lib/supabase';
+import { Asset, Department, User, Issue, IssueComment, AssetMaintenance, NotificationRecord, AuditLog } from '../lib/supabase';
 
 // Department operations
 export const departmentService = {
@@ -55,6 +55,25 @@ export const departmentService = {
       .eq('id', id)
     
     if (error) throw error
+  }
+}
+
+// Audit operations
+export const auditService = {
+  async write(log: Omit<AuditLog, 'id' | 'created_at'>): Promise<void> {
+    const { error } = await supabase
+      .from('audit_logs')
+      .insert([{ action: log.action, entity_type: log.entity_type, entity_id: log.entity_id, user_id: log.user_id, details: log.details ?? {}, created_at: new Date().toISOString() }]);
+    if (error) throw error;
+  },
+  async list(limit = 100): Promise<AuditLog[]> {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('id, user_id, action, entity_type, entity_id, details, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data as AuditLog[]) || [];
   }
 }
 
@@ -398,6 +417,7 @@ export const userService = {
       .single()
     
     if (error) throw error
+    try { await auditService.write({ user_id: null, action: 'user.create', entity_type: 'user', entity_id: (data as any).id, details: { after: data } }); } catch {}
     return data
   },
 
@@ -410,6 +430,7 @@ export const userService = {
       .single()
     
     if (error) throw error
+    try { await auditService.write({ user_id: null, action: 'user.update', entity_type: 'user', entity_id: id, details: { updates } }); } catch {}
     return data
   },
 
@@ -420,6 +441,7 @@ export const userService = {
       .eq('id', id)
     
     if (error) throw error
+    try { await auditService.write({ user_id: null, action: 'user.delete', entity_type: 'user', entity_id: id, details: {} }); } catch {}
   }
 }
 
@@ -559,6 +581,7 @@ export const commentService = {
     }
     
     console.log('Comment created successfully:', data);
+    try { await auditService.write({ user_id: (data as any).user_id || null, action: 'comment.create', entity_type: 'issue_comment', entity_id: (data as any).id, details: { after: data } }); } catch {}
     return data
   },
 
@@ -578,6 +601,7 @@ export const commentService = {
     }
     
     console.log('Comment updated successfully in service:', data);
+    try { await auditService.write({ user_id: (data as any).user_id || null, action: 'comment.update', entity_type: 'issue_comment', entity_id: id, details: { updates } }); } catch {}
     return data
   },
 
@@ -669,6 +693,7 @@ export const assetMaintenanceService = {
       .eq('id', id)
     
     if (error) throw error
+    try { await auditService.write({ user_id: null, action: 'comment.delete', entity_type: 'issue_comment', entity_id: id, details: {} }); } catch {}
   }
 }
 

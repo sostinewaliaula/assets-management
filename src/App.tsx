@@ -33,6 +33,7 @@ import { supabase } from './lib/supabase';
 // import { useSupabase } from './hooks/useSupabase';
 import ConnectionStatus from './components/ui/ConnectionStatus';
 import BackupManagement from './pages/admin/BackupManagement';
+import AuditLogs from './pages/admin/AuditLogs';
 
 function RoleIndexRedirect() {
   const { user, isLoading } = useAuth();
@@ -145,6 +146,7 @@ function App() {
                   <Route path="departments" element={<RequireAdmin><DepartmentManagement /></RequireAdmin>} />
                   <Route path="issues" element={<RequireAdmin><IssueManagement /></RequireAdmin>} />
                   <Route path="backup" element={<RequireAdmin><BackupManagement /></RequireAdmin>} />
+                  <Route path="audit" element={<RequireAdmin><AuditLogs /></RequireAdmin>} />
                 </Route>
                 <Route path="user">
                   <Route index element={<Navigate to="dashboard" replace />} />

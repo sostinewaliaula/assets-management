@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, PlusIcon, EditIcon, TrashIcon, CheckCircleIcon, XCircleIcon, DownloadIcon, UploadIcon, RefreshCwIcon, AlertCircleIcon } from 'lucide-react';
-import { assetService, departmentService, userService, notificationService } from '../../services/database';
+import { assetService, departmentService, userService, notificationService, auditService } from '../../services/database';
 import Logo from '../../assets/logo.png';
 import { Asset, Department, User } from '../../lib/supabase';
 
@@ -402,6 +402,7 @@ const AssetManagement: React.FC = () => {
       };
 
       const newAssetData = await assetService.create(assetToAdd);
+      try { await auditService.write({ user_id: null, action: 'asset.create', entity_type: 'asset', entity_id: newAssetData.id, details: { after: newAssetData } }); } catch {}
       
     // Add the new asset to the list
       setAssets([newAssetData, ...assets]);
@@ -481,6 +482,7 @@ const AssetManagement: React.FC = () => {
       const previousDeptId = previous?.department_id || null;
       // Update the asset in the database
       const updatedAsset = await assetService.update(editingAsset.id, editingAsset);
+      try { await auditService.write({ user_id: null, action: 'asset.update', entity_type: 'asset', entity_id: updatedAsset.id, details: { before: previous, after: updatedAsset } }); } catch {}
       
       // Update the asset in the local state
       const updatedAssets = assets.map(asset => 
@@ -550,6 +552,7 @@ const AssetManagement: React.FC = () => {
       // Delete the asset from the database
       const deptId = selectedAsset.department_id || null;
       await assetService.delete(selectedAsset.id);
+      try { await auditService.write({ user_id: null, action: 'asset.delete', entity_type: 'asset', entity_id: selectedAsset.id, details: { before: selectedAsset } }); } catch {}
       
     // Filter out the selected asset
     const updatedAssets = assets.filter(asset => asset.id !== selectedAsset.id);

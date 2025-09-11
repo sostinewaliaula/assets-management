@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { MonitorIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, InfoIcon, ArrowRightIcon, BellIcon, XCircleIcon } from 'lucide-react';
-import { assetService, issueService, notificationService, userService, assetRequestsService } from '../../services/database';
+import { assetService, issueService, notificationService, userService, assetRequestsService, auditService } from '../../services/database';
 
 const UserDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -111,6 +111,7 @@ const UserDashboard: React.FC = () => {
       };
 
       const created = await issueService.create(newIssuePayload as any);
+      try { await auditService.write({ user_id: user.id, action: 'issue.create', entity_type: 'issue', entity_id: created.id, details: { after: created } }); } catch {}
       setIssues(prev => [created, ...prev]);
 
       // Create a user notification so it appears on the Notifications page

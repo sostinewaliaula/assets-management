@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, PlusIcon, EditIcon, TrashIcon, XCircleIcon, BuildingIcon, RefreshCwIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 import Logo from '../../assets/logo.png';
-import { departmentService, userService } from '../../services/database';
+import { departmentService, userService, auditService } from '../../services/database';
 import { Department, User } from '../../lib/supabase';
 import { formatKES } from '../../utils/formatCurrency';
 
@@ -157,6 +157,7 @@ const DepartmentManagement: React.FC = () => {
     };
 
       const newDepartmentData = await departmentService.create(departmentToAdd);
+      try { await auditService.write({ user_id: null, action: 'department.create', entity_type: 'department', entity_id: newDepartmentData.id, details: { after: newDepartmentData } }); } catch {}
       
     // Add the new department to the list
       setDepartmentData([...departmentData, newDepartmentData]);
@@ -213,6 +214,7 @@ const DepartmentManagement: React.FC = () => {
         manager_id: newDepartment.manager_id ? newDepartment.manager_id : null,
         parent_id: newDepartment.parent_id || null
       } as any));
+      try { await auditService.write({ user_id: null, action: 'department.update', entity_type: 'department', entity_id: updatedDepartment.id, details: { before: selectedDepartment, after: updatedDepartment } }); } catch {}
 
       // Update the department in the list
       const updatedDepartments = departmentData.map(dept => 
@@ -265,6 +267,7 @@ const DepartmentManagement: React.FC = () => {
     try {
       // Delete the department from the database
       await departmentService.delete(selectedDepartment.id);
+      try { await auditService.write({ user_id: null, action: 'department.delete', entity_type: 'department', entity_id: selectedDepartment.id, details: { before: selectedDepartment } }); } catch {}
       
     // Filter out the selected department
     const updatedDepartments = departmentData.filter(dept => dept.id !== selectedDepartment.id);

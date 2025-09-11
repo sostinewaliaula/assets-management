@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { SearchIcon, FilterIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon, RefreshCwIcon, XCircleIcon, UserIcon, MessageSquareIcon, TrashIcon, EditIcon, DownloadIcon } from 'lucide-react';
+import { auditService } from '../../services/database';
 import Logo from '../../assets/logo.png';
 import { issueService, assetService, userService, commentService, notificationService, departmentService } from '../../services/database';
 import { Issue, Asset, User, IssueComment, Department } from '../../lib/supabase';
@@ -354,6 +355,7 @@ const IssueManagement: React.FC = () => {
       }
 
       const updatedIssue = await issueService.update(selectedIssue.id, updatePayload);
+      try { await auditService.write({ user_id: user?.id || null, action: 'issue.update_status', entity_type: 'issue', entity_id: updatedIssue.id, details: { before: { status: previousStatus }, after: { status: updatedIssue.status } } }); } catch {}
       
       // Update local state of issues
       const updatedIssues = issues.map(issue => 

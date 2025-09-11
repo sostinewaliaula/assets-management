@@ -5,7 +5,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { SearchIcon, FilterIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, PlusIcon, XCircleIcon, InfoIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSupabase } from '../../hooks/useSupabase';
-import { notificationService, userService, departmentService } from '../../services/database';
+import { notificationService, userService, departmentService, auditService } from '../../services/database';
 import ConnectionStatus from '../../components/ui/ConnectionStatus';
 
 const UserIssues: React.FC = () => {
@@ -138,6 +138,7 @@ const UserIssues: React.FC = () => {
       });
       if (error) throw error;
       setIssues(prev => [created, ...prev]);
+      try { await auditService.write({ user_id: user.id, action: 'issue.create', entity_type: 'issue', entity_id: created.id, details: { after: created } }); } catch {}
 
       try {
         await notificationService.create({

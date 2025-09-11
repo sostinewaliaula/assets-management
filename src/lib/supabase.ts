@@ -193,6 +193,16 @@ export interface NotificationRecord {
   created_at: string
 }
 
+export interface AuditLog {
+  id: string
+  user_id: string | null
+  action: string
+  entity_type: string
+  entity_id: string | null
+  details: any
+  created_at: string
+}
+
 export interface AssetRequest {
   id: string
   user_id: string

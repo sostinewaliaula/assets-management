@@ -5,7 +5,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Asset, supabase } from '../../lib/supabase';
-import { issueService, assetRequestsService, userService, notificationService, departmentService } from '../../services/database';
+import { issueService, assetRequestsService, userService, notificationService, departmentService, auditService } from '../../services/database';
 import { formatKES } from '../../utils/formatCurrency';
 
 const assetTypes = ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet', 'Printer', 'Server', 'Router', 'Switch', 'Projector', 'Camera', 'Furniture', 'Vehicle'];
@@ -478,6 +478,7 @@ const UserAssets: React.FC = () => {
         .eq('id', editingAsset.id)
         .eq('assigned_to', user.id); // ensure updating only own asset
       if (error) throw error;
+      try { await auditService.write({ user_id: user.id, action: 'asset.update_user', entity_type: 'asset', entity_id: editingAsset.id, details: { updates } }); } catch {}
       addNotification({ title: 'Asset Updated', message: 'Your asset details have been updated.', type: 'success' });
       addToast({ title: 'Asset Updated', message: `${editingAsset.name} has been updated.`, type: 'success' });
       try {

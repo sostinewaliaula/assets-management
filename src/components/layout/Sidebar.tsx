@@ -85,6 +85,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     name: 'Backup Management',
     path: '/admin/backup',
     icon: <DatabaseIcon size={20} />
+  }, {
+    name: 'Audit Logs',
+    path: '/admin/audit',
+    icon: <DatabaseIcon size={20} />
   }];
   const userOnlySettings = { name: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> };
   const navItems = isAdmin 

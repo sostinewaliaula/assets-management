@@ -1,5 +1,6 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { supabase } from '../lib/supabase';
+import { auditService } from '../services/database';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 // Define types based on your existing schema
@@ -134,7 +135,9 @@ export const AuthProvider: React.FC<{
         if (event === 'SIGNED_IN' && session?.user) {
           const userData = await convertSupabaseUser(session.user);
           setUser(userData);
+          try { await auditService.write({ user_id: session.user.id, action: 'auth.sign_in', entity_type: 'auth', entity_id: session.user.id, details: { email: session.user.email } }); } catch {}
         } else if (event === 'SIGNED_OUT') {
+          try { await auditService.write({ user_id: user?.id || null, action: 'auth.sign_out', entity_type: 'auth', entity_id: user?.id || null, details: {} }); } catch {}
           setUser(null);
         }
         
@@ -169,10 +172,12 @@ export const AuthProvider: React.FC<{
           throw new Error('User profile not found in database');
         }
         setUser(userData);
+        try { await auditService.write({ user_id: data.user.id, action: 'auth.sign_in', entity_type: 'auth', entity_id: data.user.id, details: { email: data.user.email } }); } catch {}
       }
       return {};
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login failed:', error);
+      try { await auditService.write({ user_id: null, action: 'auth.sign_in_failed', entity_type: 'auth', entity_id: null, details: { email, error: String(error?.message || error) } }); } catch {}
       throw error;
     } finally {
       setIsLoading(false);
@@ -186,13 +191,17 @@ export const AuthProvider: React.FC<{
     const challenge = (challengeRes as any).data;
     if (!challenge || !challenge.id) throw new Error('MFA challenge could not be created');
     const { error } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code });
-    if (error) throw error as any;
+    if (error) {
+      try { await auditService.write({ user_id: null, action: 'auth.mfa_verify_failed', entity_type: 'auth', entity_id: null, details: { factorId, error: String(error.message || error) } }); } catch {}
+      throw error as any;
+    }
     // After verification, set user from current session
     const { data: sessionRes } = await supabase.auth.getSession();
     const supaUser = sessionRes.session?.user;
     if (supaUser) {
       const userData = await convertSupabaseUser(supaUser);
       setUser(userData);
+      try { await auditService.write({ user_id: supaUser.id, action: 'auth.mfa_verify', entity_type: 'auth', entity_id: supaUser.id, details: { factorId } }); } catch {}
     }
   };
 
@@ -206,6 +215,7 @@ export const AuthProvider: React.FC<{
     const qr = data?.totp?.qr_code || data?.qr_code;
     const uri = data?.totp?.uri || data?.totp?.otpauth_url || data?.otpauth_url;
     if (!factorId) throw new Error('Could not retrieve TOTP factor ID from enrollment');
+    try { await auditService.write({ user_id: null, action: 'auth.mfa_enroll_start', entity_type: 'auth', entity_id: factorId, details: {} }); } catch {}
     return { factorId, qrCode: qr, otpauthUrl: uri };
   };
 
@@ -220,12 +230,14 @@ export const AuthProvider: React.FC<{
       const { error } = await mfa.verify({ factorId, code: cleaned });
       if (error) throw error;
     }
+    try { await auditService.write({ user_id: null, action: 'auth.mfa_enroll_verify', entity_type: 'auth', entity_id: factorId, details: {} }); } catch {}
   };
 
   // Disable a TOTP factor
   const disableTotp = async (factorId: string) => {
     const { error } = await (supabase.auth as any).mfa.unenroll({ factorId });
     if (error) throw error;
+    try { await auditService.write({ user_id: null, action: 'auth.mfa_disable', entity_type: 'auth', entity_id: factorId, details: {} }); } catch {}
   };
 
   // List existing MFA factors (TOTP/WebAuthn)
@@ -263,6 +275,7 @@ export const AuthProvider: React.FC<{
         console.error('❌ Supabase forgot password error:', error);
         throw error;
       }
+      try { await auditService.write({ user_id: null, action: 'auth.password_reset_requested', entity_type: 'auth', entity_id: null, details: { email } }); } catch {}
       
       console.log('✅ Password reset email sent successfully');
     } catch (error) {
@@ -284,6 +297,7 @@ export const AuthProvider: React.FC<{
         console.error('❌ Supabase reset password error:', error);
         throw error;
       }
+      try { await auditService.write({ user_id: user?.id || null, action: 'auth.password_reset', entity_type: 'auth', entity_id: user?.id || null, details: {} }); } catch {}
       
       console.log('✅ Password reset successfully');
     } catch (error) {
