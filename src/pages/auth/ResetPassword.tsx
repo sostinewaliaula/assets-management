@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -13,6 +13,17 @@ const ResetPassword: React.FC = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const passwordChecks = useMemo(() => {
+    const len = password.length >= 8;
+    const upper = /[A-Z]/.test(password);
+    const lower = /[a-z]/.test(password);
+    const num = /[0-9]/.test(password);
+    const special = /[^A-Za-z0-9]/.test(password);
+    const match = !!password && confirmPassword === password;
+    return { len, upper, lower, num, special, match };
+  }, [password, confirmPassword]);
   const [isCheckingToken, setIsCheckingToken] = useState(true);
   
   const { resetPassword } = useAuth();
@@ -87,11 +98,11 @@ const ResetPassword: React.FC = () => {
       return;
     }
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (!(passwordChecks.len && passwordChecks.upper && passwordChecks.lower && passwordChecks.num && passwordChecks.special)) {
+      setError('Password does not meet complexity requirements.');
       addToast({
-        title: 'Password Too Short',
-        message: 'Password must be at least 8 characters long.',
+        title: 'Weak Password',
+        message: 'Password does not meet complexity requirements.',
         type: 'error',
         duration: 5000
       });
@@ -244,14 +255,22 @@ const ResetPassword: React.FC = () => {
                     <input
                       className="block w-full pl-10 mt-1 text-sm border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl form-input focus:border-primary focus:outline-none focus:ring focus:ring-primary focus:ring-opacity-40"
                       placeholder="************"
-                      type="password"
+                      type={showNew ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={8}
                     />
+                    <button type="button" onClick={() => setShowNew(s=>!s)} className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700">{showNew ? 'Hide' : 'Show'}</button>
                 </div>
               </label>
+              {/* Requirements indicator */}
+              <ul className="mt-2 space-y-1 text-xs">
+                <li className={`${passwordChecks.len ? 'text-green-600' : 'text-gray-500'}`}>At least 8 characters</li>
+                <li className={`${passwordChecks.upper ? 'text-green-600' : 'text-gray-500'}`}>Contains an uppercase letter</li>
+                <li className={`${passwordChecks.lower ? 'text-green-600' : 'text-gray-500'}`}>Contains a lowercase letter</li>
+                <li className={`${passwordChecks.num ? 'text-green-600' : 'text-gray-500'}`}>Contains a number</li>
+                <li className={`${passwordChecks.special ? 'text-green-600' : 'text-gray-500'}`}>Contains a special character</li>
+              </ul>
               <label className="block mt-4 text-sm">
                 <span className="text-gray-700 dark:text-gray-300">Confirm Password</span>
                 <div className="relative mt-1">
@@ -261,14 +280,19 @@ const ResetPassword: React.FC = () => {
                     <input
                       className="block w-full pl-10 mt-1 text-sm border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 rounded-xl form-input focus:border-primary focus:outline-none focus:ring focus:ring-primary focus:ring-opacity-40"
                       placeholder="************"
-                      type="password"
+                      type={showConfirm ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
-                      minLength={8}
                     />
+                    <button type="button" onClick={() => setShowConfirm(s=>!s)} className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700">{showConfirm ? 'Hide' : 'Show'}</button>
                 </div>
               </label>
+              {confirmPassword && (
+                <div className={`mt-2 text-xs ${passwordChecks.match ? 'text-green-600' : 'text-red-600'}`}>
+                  {passwordChecks.match ? 'Passwords match' : 'Passwords do not match'}
+                </div>
+              )}
                 <button
                   type="submit"
                   className="button-primary block w-full px-4 py-2 mt-4 text-sm font-medium leading-5 text-center"
