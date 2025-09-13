@@ -22,7 +22,7 @@ const DepartmentManagement: React.FC = () => {
   const [newDepartment, setNewDepartment] = useState({
     name: '',
     description: '',
-    location: '',
+    location: 'Turnkey Africa',
     manager: '',
     manager_id: '' as string | '',
     parent_id: '' as string | ''
@@ -30,6 +30,8 @@ const DepartmentManagement: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json' | 'txt' | 'excel' | 'pdf'>('csv');
   const importInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   const parseAssetValueToNumber = (value: any) => {
     if (value == null) return 0;
@@ -37,6 +39,37 @@ const DepartmentManagement: React.FC = () => {
     const cleaned = String(value).replace(/[^0-9.-]+/g, '');
     const n = parseFloat(cleaned);
     return isNaN(n) ? 0 : n;
+  };
+
+  // Select all handler
+  const handleSelectAllDepartments = (checked: boolean, depts: Department[]) => {
+    if (checked) {
+      setSelectedDepartmentIds(depts.map(d => d.id));
+    } else {
+      setSelectedDepartmentIds([]);
+    }
+  };
+
+  // Select one handler
+  const handleSelectOneDepartment = (id: string, checked: boolean) => {
+    setSelectedDepartmentIds(prev => checked ? [...prev, id] : prev.filter(i => i !== id));
+  };
+
+  // Bulk delete handler (opens modal)
+  const handleBulkDeleteDepartments = () => {
+    setShowBulkDeleteModal(true);
+  };
+
+  // Confirm bulk delete
+  const confirmBulkDeleteDepartments = async () => {
+    for (const id of selectedDepartmentIds) {
+      await departmentService.delete(id);
+    }
+    setDepartmentData(prev => prev.filter(d => !selectedDepartmentIds.includes(d.id)));
+    setFilteredDepartments(prev => prev.filter(d => !selectedDepartmentIds.includes(d.id)));
+    setSelectedDepartmentIds([]);
+    setShowBulkDeleteModal(false);
+    addToast({ title: 'Departments Deleted', message: 'Selected departments have been deleted.', type: 'success' });
   };
 
   // Fetch departments and users from database
@@ -64,7 +97,7 @@ const DepartmentManagement: React.FC = () => {
             await departmentService.create({
               name,
               description: `Root department: ${name}`,
-              location: name === 'Turnkey' ? 'Turnkey' : '',
+              location: name === 'Turnkey' ? 'Turnkey Africa' : '',
               manager: 'Unassigned'
             } as any);
           } catch (_) { /* ignore individual failures */ }
@@ -494,6 +527,13 @@ const DepartmentManagement: React.FC = () => {
           </div>
         </div>
 
+        {selectedDepartmentIds.length > 0 && (
+          <div className="mb-2 flex items-center space-x-4">
+            <span className="text-sm">{selectedDepartmentIds.length} selected</span>
+            <button onClick={handleBulkDeleteDepartments} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete Selected</button>
+          </div>
+        )}
+
         {['Turnkey','Agencify','Caava AI'].map(rootName => {
           const roots = departmentData.filter(d => !(d as any).parent_id && (d.name || '').trim().toLowerCase() === rootName.toLowerCase());
           const anyMatch = departmentData.find(d => (d.name || '').trim().toLowerCase() === rootName.toLowerCase());
@@ -531,6 +571,7 @@ const DepartmentManagement: React.FC = () => {
                   <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
                     <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
                       <tr>
+                        <th className="px-4 py-3"><input type="checkbox" checked={selectedDepartmentIds.length === children.length && children.length > 0} onChange={e => handleSelectAllDepartments(e.target.checked, children)} /></th>
                         <th className="px-6 py-3">Sub-Department</th>
                         <th className="px-6 py-3">Manager</th>
                         <th className="px-6 py-3">Users</th>
@@ -542,6 +583,7 @@ const DepartmentManagement: React.FC = () => {
                     <tbody>
                       {children.map(dept => (
                         <tr key={dept.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
+                          <td className="px-4 py-4"><input type="checkbox" checked={selectedDepartmentIds.includes(dept.id)} onChange={e => handleSelectOneDepartment(dept.id, e.target.checked)} /></td>
                           <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">{dept.name}</td>
                           <td className="px-6 py-4">{dept.manager}</td>
                           <td className="px-6 py-4"><span className="px-2 py-1 text-xs font-medium text-primary bg-lightgreen rounded-full">{dept.user_count}</span></td>
@@ -624,11 +666,14 @@ const DepartmentManagement: React.FC = () => {
                 <label className="block mb-2 text-sm font-medium text-primary">Location</label>
                 <input
                   type="text"
-                  className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="e.g. Floor 2, Building A"
-                  value={newDepartment.location}
+                  className="block w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl"
+                  value="Turnkey Africa"
+                  readOnly
+                />
+                <input
+                  type="hidden"
+                  value="Turnkey Africa"
                   onChange={(e) => setNewDepartment({ ...newDepartment, location: e.target.value })}
-                  required
                 />
               </div>
               <div className="mb-4">
@@ -802,6 +847,36 @@ const DepartmentManagement: React.FC = () => {
             </div>
             </div>
           </div>
+      )}
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </div>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">Delete Departments</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                Are you sure you want to delete <b>{selectedDepartmentIds.length}</b> selected department{selectedDepartmentIds.length > 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+            </div>
+            <div className="mt-6 flex space-x-3">
+              <button
+                onClick={confirmBulkDeleteDepartments}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

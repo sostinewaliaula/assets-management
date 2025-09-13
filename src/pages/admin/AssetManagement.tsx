@@ -9,7 +9,6 @@ import { Asset, Department, User } from '../../lib/supabase';
 // Static data for dropdowns (these could also come from the database)
 const assetTypes = ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet', 'Printer', 'Server', 'Router', 'Switch', 'Projector', 'Camera', 'Furniture', 'Vehicle'];
 const manufacturers = ['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Samsung', 'Cisco', 'Logitech', 'Canon', 'Epson', 'LG', 'ASUS', 'Acer', 'Sony', 'Brother'];
-const locations = ['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
 const assetStatuses = ['Available', 'Assigned', 'In Maintenance', 'Reserved', 'Disposed'];
 const assetConditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'];
 
@@ -44,13 +43,46 @@ const AssetManagement: React.FC = () => {
     current_value: 0,
     status: 'Available',
     condition: 'New',
-    location: 'Headquarters - Floor 1',
+    location: 'Turnkey Africa',
     assigned_to: null as string | null,
     department_id: '' as string,
     warranty_expiry: '',
     last_maintenance: null as string | null,
     notes: ''
   });
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
+  // Select all handler
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedAssetIds(filteredAssets.map(a => a.id));
+    } else {
+      setSelectedAssetIds([]);
+    }
+  };
+
+  // Select one handler
+  const handleSelectOne = (id: string, checked: boolean) => {
+    setSelectedAssetIds(prev => checked ? [...prev, id] : prev.filter(i => i !== id));
+  };
+
+  // Bulk delete handler (opens modal)
+  const handleBulkDelete = () => {
+    setShowBulkDeleteModal(true);
+  };
+
+  // Confirm bulk delete
+  const confirmBulkDelete = async () => {
+    for (const id of selectedAssetIds) {
+      await assetService.delete(id);
+    }
+    setAssets(prev => prev.filter(a => !selectedAssetIds.includes(a.id)));
+    setFilteredAssets(prev => prev.filter(a => !selectedAssetIds.includes(a.id)));
+    setSelectedAssetIds([]);
+    setShowBulkDeleteModal(false);
+    addToast({ title: 'Assets Deleted', message: 'Selected assets have been deleted.', type: 'success' });
+  };
 
   const recomputeDepartmentStats = async (departmentId: string | null) => {
     try {
@@ -58,9 +90,9 @@ const AssetManagement: React.FC = () => {
       const assetsInDept = await assetService.getByDepartment(departmentId);
       const asset_count = assetsInDept.length;
       const totalValue = assetsInDept.reduce((sum, a) => sum + (Number((a as any).current_value) || 0), 0);
-      await departmentService.update(departmentId, { asset_count, asset_value: formatKES(totalValue) } as any);
+      await departmentService.update(departmentId, { asset_count, asset_value: `KSh ${totalValue.toLocaleString()}` } as any);
       // reflect locally if we have departments loaded
-      setDepartments(prev => prev.map(d => d.id === departmentId ? { ...d, asset_count, asset_value: formatKES(totalValue) } as any : d));
+      setDepartments(prev => prev.map(d => d.id === departmentId ? { ...d, asset_count, asset_value: `KSh ${totalValue.toLocaleString()}` } as any : d));
     } catch (e) {
       console.warn('Failed to recompute department stats', e);
     }
@@ -134,7 +166,7 @@ const AssetManagement: React.FC = () => {
 
   const downloadSampleCsv = () => {
     const headers = ['name','type','serial_number','status','location','manufacturer','department_id','assigned_to','purchase_date','warranty_expiry'];
-    const sample = [["MacBook Pro 14\"", 'Laptop', 'SN-ABC123', 'Available', 'Headquarters - Floor 1', 'Apple', '', '', '', '']];
+    const sample = [["MacBook Pro 14\"", 'Laptop', 'SN-ABC123', 'Available', 'Turnkey Africa', 'Apple', '', '', '', '']];
     const rows = [headers.join(','), ...sample.map(r => r.map(v => {
       const s = String(v ?? '');
       return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -437,7 +469,7 @@ const AssetManagement: React.FC = () => {
         current_value: 0,
       status: 'Available',
       condition: 'New',
-        location: 'Headquarters - Floor 1',
+        location: 'Turnkey Africa',
         assigned_to: null,
         department_id: '',
         warranty_expiry: '',
@@ -795,6 +827,7 @@ const AssetManagement: React.FC = () => {
         <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
           <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
             <tr>
+              <th className="px-4 py-3"><input type="checkbox" checked={selectedAssetIds.length === filteredAssets.length && filteredAssets.length > 0} onChange={e => handleSelectAll(e.target.checked)} /></th>
               <th scope="col" className="px-6 py-3">Asset</th>
               <th scope="col" className="px-6 py-3">Type</th>
               <th scope="col" className="px-6 py-3">Serial Number</th>
@@ -806,6 +839,7 @@ const AssetManagement: React.FC = () => {
           </thead>
            <tbody>
             {filteredAssets.map(asset => <tr key={asset.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
+              <td className="px-4 py-4"><input type="checkbox" checked={selectedAssetIds.includes(asset.id)} onChange={e => handleSelectOne(asset.id, e.target.checked)} /></td>
               <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                 <Link to={`/assets/${asset.id}`} className="flex items-center">
                   <img src={"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50'%3E%3Crect width='100%25' height='100%25' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'%3EIMG%3C/text%3E%3C/svg%3E"} alt={asset.name} className="w-10 h-10 mr-3 rounded-xl" />
@@ -842,6 +876,12 @@ const AssetManagement: React.FC = () => {
           <button onClick={() => setShowAddAssetModal(true)} className="px-4 py-2 mt-4 text-sm font-medium text-primary bg-lightgreen rounded-full shadow-button hover:opacity-90">Add New Asset</button>
         </>}
       </div>}
+      {selectedAssetIds.length > 0 && (
+        <div className="mb-2 flex items-center space-x-4">
+          <span className="text-sm">{selectedAssetIds.length} selected</span>
+          <button onClick={handleBulkDelete} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete Selected</button>
+        </div>
+      )}
     </div>
     {/* Add Asset Modal */}
     {showAddAssetModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -914,9 +954,12 @@ const AssetManagement: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Location</label>
-              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={newAsset.location} onChange={e => setNewAsset({ ...newAsset, location: e.target.value })} required>
-                {locations.map(location => <option key={location} value={location}>{location}</option>)}
-              </select>
+              <input
+                type="text"
+                className="block w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl"
+                value="Turnkey Africa"
+                readOnly
+              />
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Status</label>
@@ -1021,9 +1064,12 @@ const AssetManagement: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Location</label>
-              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.location} onChange={e => setEditingAsset({ ...editingAsset, location: e.target.value })} required>
-                {locations.map(location => <option key={location} value={location}>{location}</option>)}
-              </select>
+              <input
+                type="text"
+                className="block w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl"
+                value="Turnkey Africa"
+                readOnly
+              />
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Status</label>
@@ -1090,6 +1136,36 @@ const AssetManagement: React.FC = () => {
         </div>
       </div>
     </div>}
+    {/* Bulk Delete Confirmation Modal */}
+    {showBulkDeleteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Delete Assets</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Are you sure you want to delete <b>{selectedAssetIds.length}</b> selected asset{selectedAssetIds.length > 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+          </div>
+          <div className="mt-6 flex space-x-3">
+            <button
+              onClick={confirmBulkDelete}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setShowBulkDeleteModal(false)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </div>;
 };
 

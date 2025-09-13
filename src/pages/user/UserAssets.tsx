@@ -5,12 +5,12 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useSupabase } from '../../hooks/useSupabase';
 import { AlertCircleIcon, MonitorIcon, XCircleIcon, WifiIcon, WifiOffIcon, SearchIcon, FilterIcon, ArrowRightIcon, CheckCircleIcon } from 'lucide-react';
 import { Asset, supabase } from '../../lib/supabase';
-import { issueService, assetRequestsService, userService, notificationService, departmentService, auditService } from '../../services/database';
+import { issueService, assetRequestsService, userService, notificationService, departmentService, auditService, assetService } from '../../services/database';
 import { formatKES } from '../../utils/formatCurrency';
 
 const assetTypes = ['Laptop', 'Desktop', 'Monitor', 'Keyboard', 'Mouse', 'Phone', 'Tablet', 'Printer', 'Server', 'Router', 'Switch', 'Projector', 'Camera', 'Furniture', 'Vehicle'];
 const manufacturers = ['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Samsung', 'Cisco', 'Logitech', 'Canon', 'Epson', 'LG', 'ASUS', 'Acer', 'Sony', 'Brother'];
-const locations = ['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
+const locations = ['Turnkey Africa', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
 const assetStatuses = ['Available', 'Assigned', 'In Maintenance', 'Reserved', 'Disposed'];
 const assetConditions = ['New', 'Excellent', 'Good', 'Fair', 'Poor', 'Defective'];
 
@@ -36,10 +36,14 @@ const UserAssets: React.FC = () => {
     model: '',
     serial_number: '',
     condition: 'New',
-    location: 'Turnkey',
+    location: 'Turnkey Africa',
     department_id: '',
     last_maintenance: null as string | null,
-    notes: ''
+    notes: '',
+    purchase_date: '',
+    purchase_price: 0,
+    current_value: 0,
+    warranty_expiry: null as string | null
   });
   const [isSubmittingAsset, setIsSubmittingAsset] = useState(false);
   // Edit asset modal state
@@ -214,8 +218,7 @@ const UserAssets: React.FC = () => {
           title: 'Issue Reported',
           message: `Your issue "${newIssue.title}" has been created and is now Open.`,
           type: 'info',
-          read: false,
-          created_at: new Date().toISOString()
+          read: false
         });
         await notificationService.notifyUser(
           user.id,
@@ -394,15 +397,10 @@ const UserAssets: React.FC = () => {
       const assetToAdd = {
         ...newAsset,
         assigned_to: user.id,
-        status: 'Assigned',
         department_id: employeeDeptId || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        status: 'Assigned' // Will be overridden by service, but required for type
       };
-      const { error } = await supabase
-        .from('assets')
-        .insert(assetToAdd);
-      if (error) throw error;
+      await assetService.create(assetToAdd);
       addNotification({ title: 'Asset Added', message: 'Your asset has been added.', type: 'success' });
       addToast({ title: 'Asset Added', message: `${newAsset.name} has been added and assigned to you.`, type: 'success' });
       try {
@@ -411,8 +409,7 @@ const UserAssets: React.FC = () => {
           title: 'Asset Added',
           message: `Your asset "${newAsset.name}" has been added and assigned to you.`,
           type: 'success',
-          read: false,
-          created_at: new Date().toISOString()
+          read: false
         });
         const recipients = await userService.getByRoles(['admin', 'department_officer']);
         await Promise.all(
@@ -435,10 +432,14 @@ const UserAssets: React.FC = () => {
         model: '',
         serial_number: '',
         condition: 'New',
-        location: 'Turnkey',
+        location: 'Turnkey Africa',
         department_id: '',
         last_maintenance: null,
-        notes: ''
+        notes: '',
+        purchase_date: '',
+        purchase_price: 0,
+        current_value: 0,
+        warranty_expiry: null
       });
       // Refresh assets
       const { data } = await supabase
@@ -472,12 +473,7 @@ const UserAssets: React.FC = () => {
       updated_at: new Date().toISOString()
     };
     try {
-      const { error } = await supabase
-        .from('assets')
-        .update(updates)
-        .eq('id', editingAsset.id)
-        .eq('assigned_to', user.id); // ensure updating only own asset
-      if (error) throw error;
+      await assetService.update(editingAsset.id, updates);
       try { await auditService.write({ user_id: user.id, action: 'asset.update_user', entity_type: 'asset', entity_id: editingAsset.id, details: { updates } }); } catch {}
       addNotification({ title: 'Asset Updated', message: 'Your asset details have been updated.', type: 'success' });
       addToast({ title: 'Asset Updated', message: `${editingAsset.name} has been updated.`, type: 'success' });
@@ -487,8 +483,7 @@ const UserAssets: React.FC = () => {
           title: 'Asset Updated',
           message: `Your asset "${editingAsset.name}" was updated successfully.`,
           type: 'success',
-          read: false,
-          created_at: new Date().toISOString()
+          read: false
         });
       } catch {}
       // Refresh list

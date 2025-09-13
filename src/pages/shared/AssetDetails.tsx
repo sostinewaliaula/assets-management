@@ -335,12 +335,8 @@ const AssetDetails: React.FC = () => {
     if (!asset) return;
     setIsDisposing(true);
     try {
-      const { error } = await supabase
-        .from('assets')
-        .update({ status: 'Disposed' })
-        .eq('id', asset.id);
-      if (error) throw error;
-      setAsset({ ...asset, status: 'Disposed' });
+      const updatedAsset = await assetService.update(asset.id, { status: 'Disposed' });
+      setAsset(updatedAsset);
       addNotification({
         title: 'Asset Disposed',
         message: `${asset.name} has been marked as Disposed.`,
@@ -949,9 +945,12 @@ const AssetDetails: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Location</label>
-              <select className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" value={editingAsset.location} onChange={e => setEditingAsset({ ...editingAsset, location: e.target.value })} required>
-                {['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'].map(location => <option key={location} value={location}>{location}</option>)}
-              </select>
+              <input
+                type="text"
+                className="block w-full px-4 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-xl"
+                value="Turnkey Africa"
+                readOnly
+              />
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Status</label>

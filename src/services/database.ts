@@ -333,9 +333,19 @@ export const assetService = {
   },
 
   async create(asset: Omit<Asset, 'id' | 'created_at' | 'updated_at'>): Promise<Asset> {
+    // Automatically set status based on assignment
+    const processedAsset = { ...asset };
+    
+    // If assigned_to is set, set status to 'Assigned', otherwise 'Available'
+    if (asset.assigned_to) {
+      processedAsset.status = 'Assigned';
+    } else {
+      processedAsset.status = 'Available';
+    }
+    
     const { data, error } = await supabase
       .from('assets')
-      .insert([asset])
+      .insert([processedAsset])
       .select()
       .single()
     
@@ -344,9 +354,22 @@ export const assetService = {
   },
 
   async update(id: string, updates: Partial<Asset>): Promise<Asset> {
+    // Automatically set status based on assignment
+    const processedUpdates = { ...updates };
+    
+    // If assigned_to is being set, set status to 'Assigned'
+    if (updates.assigned_to !== undefined) {
+      if (updates.assigned_to) {
+        processedUpdates.status = 'Assigned';
+      } else {
+        // If assigned_to is being cleared, set status to 'Available'
+        processedUpdates.status = 'Available';
+      }
+    }
+    
     const { data, error } = await supabase
       .from('assets')
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...processedUpdates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select()
       .single()

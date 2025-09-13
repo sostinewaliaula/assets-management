@@ -6,7 +6,7 @@ export const manufacturers = ['Dell', 'HP', 'Lenovo', 'Apple', 'Microsoft', 'Sam
 // Departments
 export const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Sales', 'Operations', 'Legal', 'R&D', 'Customer Support', 'Executive'];
 // Locations
-export const locations = ['Headquarters - Floor 1', 'Headquarters - Floor 2', 'Headquarters - Floor 3', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
+export const locations = ['Turnkey Africa', 'Branch Office - North', 'Branch Office - South', 'Branch Office - East', 'Branch Office - West', 'Data Center', 'Remote'];
 // Asset Status
 export const assetStatuses = ['Available', 'Assigned', 'In Maintenance', 'Reserved', 'Disposed'];
 // Asset Conditions
@@ -222,7 +222,7 @@ export const generateMockUserAssets = (userId: string, count = 10) => {
         purchaseDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
         warrantyEndDate: new Date(Date.now() + Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
         department: 'IT',
-        location: 'Headquarters - Floor 1',
+        location: 'Turnkey Africa',
         status: 'Assigned',
         condition: ['New', 'Excellent', 'Good'][Math.floor(Math.random() * 3)],
         assignedUser: {

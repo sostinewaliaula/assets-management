@@ -36,6 +36,43 @@ const UserManagement: React.FC = () => {
     password: '',
     confirmPassword: ''
   });
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
+  const positions = [
+    'Accounts Assistant', 'Assistant Product Owner', 'Associate Solution Consultant 1', 'Associate Solution Consultant 2', 'Associate Support Analyst 1', 'Associate System Engineer', 'Business Analyst', 'Business Analyst Intern', 'CCO', 'CEO', 'CoE Manager', 'CPO', 'CTO', 'Category', 'Customer Management', 'Delivery Lead', 'Director', 'DMS Engineer', 'Driver', 'Engineering Manager', 'Entry Business Analyst', 'Entry Level 1', 'Entry Level 2', 'Entry Level 3', 'Entry Software Engineer 1', 'Entry Software Engineer 2', 'Entry Software Engineer 3', 'Entry System Engineer 1', 'Entry System Engineer 2', 'Entry System Engineer 3', 'Finance Manager', 'HOD Projects', 'Hospitality Personnel', 'HR & Executive Support', 'HR Admin', 'Infrastructure-lntern', 'Intern-Engineering', 'Intern-Support', 'Marketing Executive', 'Operations Lead', 'Operations Manager', 'Product Owner', 'Products Manager', 'Project Coordinator', 'Project Manager', 'PSM Manager', 'QA Associate Analyst', 'Sales Development Representative', 'Sales Executive', 'Senior Software Engineer', 'Software Engineer', 'Solution Consultant 1', 'Solution Consultant 3', 'Solution Owner', 'Support Analyst 1', 'Support Analyst 2', 'Support Analyst 3', 'Support Intern', 'System Architect', 'System Engineer', 'System Engineer Intern', 'Team Lead System Engineer', 'Technical Lead', 'UX Designer'
+  ];
+
+  // Select all handler
+  const handleSelectAllUsers = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  // Select one handler
+  const handleSelectOneUser = (id: string, checked: boolean) => {
+    setSelectedUserIds(prev => checked ? [...prev, id] : prev.filter(i => i !== id));
+  };
+
+  // Bulk delete handler (opens modal)
+  const handleBulkDeleteUsers = () => {
+    setShowBulkDeleteModal(true);
+  };
+
+  // Confirm bulk delete
+  const confirmBulkDeleteUsers = async () => {
+    for (const id of selectedUserIds) {
+      await userService.delete(id);
+    }
+    setUsers(prev => prev.filter(u => !selectedUserIds.includes(u.id)));
+    setFilteredUsers(prev => prev.filter(u => !selectedUserIds.includes(u.id)));
+    setSelectedUserIds([]);
+    setShowBulkDeleteModal(false);
+    addToast({ title: 'Users Deleted', message: 'Selected users have been deleted.', type: 'success' });
+  };
 
   useEffect(() => {
     // Fetch users and departments from Supabase
@@ -516,10 +553,17 @@ const UserManagement: React.FC = () => {
           <span className="px-3 py-1 text-sm font-medium text-primary bg-lightgreen rounded-full">{filteredUsers.length} users</span>
         </div>
       </div>
+      {selectedUserIds.length > 0 && (
+        <div className="mb-2 flex items-center space-x-4">
+          <span className="text-sm">{selectedUserIds.length} selected</span>
+          <button onClick={handleBulkDeleteUsers} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm">Delete Selected</button>
+        </div>
+      )}
       {filteredUsers.length > 0 ? <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-700 dark:text-gray-300">
           <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-lightgreen dark:bg-gray-800">
             <tr>
+              <th className="px-4 py-3"><input type="checkbox" checked={selectedUserIds.length === filteredUsers.length && filteredUsers.length > 0} onChange={e => handleSelectAllUsers(e.target.checked)} /></th>
               <th scope="col" className="px-6 py-3">User</th>
               <th scope="col" className="px-6 py-3">Email</th>
               <th scope="col" className="px-6 py-3">Role</th>
@@ -531,6 +575,7 @@ const UserManagement: React.FC = () => {
           </thead>
           <tbody>
             {filteredUsers.map(user => <tr key={user.id} className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 hover:bg-lightgreen/50 dark:hover:bg-gray-800/60">
+              <td className="px-4 py-4"><input type="checkbox" checked={selectedUserIds.includes(user.id)} onChange={e => handleSelectOneUser(user.id, e.target.checked)} /></td>
               <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-200 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="w-10 h-10 mr-3 rounded-full bg-lightgreen flex items-center justify-center">
@@ -632,12 +677,15 @@ const UserManagement: React.FC = () => {
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Position</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                  <BadgeIcon className="w-5 h-5 text-gray-400" />
-                </div>
-                <input type="text" className="block w-full pl-10 pr-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Software Developer" value={newUser.position} onChange={e => setNewUser({ ...newUser, position: e.target.value })} required />
-              </div>
+              <select
+                className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                value={newUser.position}
+                onChange={e => setNewUser({ ...newUser, position: e.target.value })}
+                required
+              >
+                <option value="">Select Position</option>
+                {positions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+              </select>
             </div>
             <div>
               <label className="block mb-2 text-sm font-medium text-primary">Phone Number</label>
@@ -759,15 +807,15 @@ const UserManagement: React.FC = () => {
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                     Position
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                      <BadgeIcon className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <input type="text" className="block w-full pl-10 pr-3 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" placeholder="Software Developer" value={newUser.position} onChange={e => setNewUser({
-                  ...newUser,
-                  position: e.target.value
-                })} required />
-                  </div>
+                  <select
+                    className="block w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    value={newUser.position}
+                    onChange={e => setNewUser({ ...newUser, position: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Position</option>
+                    {positions.map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -827,6 +875,36 @@ const UserManagement: React.FC = () => {
             </div>
           </div>
         </div>}
+    {/* Bulk Delete Confirmation Modal */}
+    {showBulkDeleteModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="w-full max-w-md p-6 mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-card">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Delete Users</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Are you sure you want to delete <b>{selectedUserIds.length}</b> selected user{selectedUserIds.length > 1 ? 's' : ''}? This action cannot be undone.
+            </p>
+          </div>
+          <div className="mt-6 flex space-x-3">
+            <button
+              onClick={confirmBulkDeleteUsers}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setShowBulkDeleteModal(false)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>;
 };
 export default UserManagement;
