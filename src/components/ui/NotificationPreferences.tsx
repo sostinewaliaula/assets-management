@@ -53,7 +53,6 @@ const NotificationPreferences: React.FC = () => {
       if (error) throw error;
       setPreferences(data);
     } catch (error) {
-      console.error('Failed to load preferences:', error);
       addToast({
         title: 'Error',
         message: 'Failed to load notification preferences',
@@ -87,7 +86,6 @@ const NotificationPreferences: React.FC = () => {
         duration: 3000
       });
     } catch (error) {
-      console.error('Failed to save preferences:', error);
       addToast({
         title: 'Error',
         message: 'Failed to update notification preferences',
@@ -108,7 +106,6 @@ const NotificationPreferences: React.FC = () => {
       setConfigStatus(status);
       
       if (status.errors.length > 0) {
-        console.log('⚠️ Configuration issues found:', status.errors);
         addToast({
           title: 'Configuration Issues',
           message: `Found ${status.errors.length} configuration issues. Check console for details.`,
@@ -137,7 +134,6 @@ const NotificationPreferences: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('❌ Error testing email system:', error);
       addToast({
         title: 'Test Error',
         message: 'Failed to test email system. Check console for details.',

@@ -18,7 +18,6 @@ const NotificationsPage: React.FC = () => {
       const data = await notificationService.getForUser(user.id, 100);
       setItems(data);
     } catch (e) {
-      console.error('Failed to load notifications', e);
     } finally {
       setLoading(false);
     }
@@ -31,7 +30,6 @@ const NotificationsPage: React.FC = () => {
       const updated = await notificationService.markAsRead(id);
       setItems(prev => prev.map(n => n.id === id ? updated : n));
     } catch (e) {
-      console.error('Failed to mark as read', e);
     }
   };
 
@@ -41,7 +39,6 @@ const NotificationsPage: React.FC = () => {
       await notificationService.markAllAsRead(user.id);
       setItems(prev => prev.map(n => ({ ...n, read: true })));
     } catch (e) {
-      console.error('Failed to mark all as read', e);
     }
   };
 

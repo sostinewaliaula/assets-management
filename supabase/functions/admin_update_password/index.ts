@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
   try {
     const payload = (await req.json()) as UpdatePasswordPayload
     const { user_id, password } = payload
-    console.log('admin_update_password: payload received', { user_id, password_len: password?.length })
     if (!user_id || !password) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
     }
@@ -36,13 +35,11 @@ Deno.serve(async (req) => {
 
     const { error } = await adminClient.auth.admin.updateUserById(user_id, { password })
     if (error) {
-      console.error('admin_update_password: update error', error)
       return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
     }
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
   } catch (e) {
-    console.error('admin_update_password: unhandled error', e)
     return new Response(JSON.stringify({ error: e?.message || 'Unexpected error' }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } })
   }
 })

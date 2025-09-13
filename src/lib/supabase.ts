@@ -4,10 +4,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: supabaseUrl ? 'Present' : 'Missing',
-    key: supabaseAnonKey ? 'Present' : 'Missing'
-  })
   throw new Error('Missing Supabase environment variables. Please check your .env file.')
 }
 
@@ -43,14 +39,11 @@ export const checkSupabaseConfig = () => {
     hasKey: !!supabaseAnonKey
   };
   
-  console.log('Supabase Configuration:', config);
   
   if (!config.hasUrl || !config.hasKey) {
-    console.error('❌ Supabase configuration incomplete');
     return false;
   }
   
-  console.log('✅ Supabase configuration complete');
   return true;
 }
 
@@ -62,13 +55,11 @@ export const checkConnection = async () => {
       .select('count', { count: 'exact', head: true })
     
     if (error) {
-      console.error('Database connection check failed:', error)
       return false
     }
     
     return true
   } catch (error) {
-    console.error('Database connection error:', error)
     return false
   }
 }
@@ -76,18 +67,14 @@ export const checkConnection = async () => {
 // Add reconnection logic
 export const reconnectSupabase = async () => {
   try {
-    console.log('Attempting to reconnect to Supabase...')
     const isConnected = await checkConnection()
     
     if (isConnected) {
-      console.log('Successfully reconnected to Supabase')
       return true
     } else {
-      console.log('Failed to reconnect to Supabase')
       return false
     }
   } catch (error) {
-    console.error('Reconnection error:', error)
     return false
   }
 }

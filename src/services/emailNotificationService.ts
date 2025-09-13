@@ -30,7 +30,6 @@ export class EmailNotificationService {
 
   async sendNotificationEmail(data: EmailNotificationData): Promise<boolean> {
     try {
-      console.log('📧 Sending email notification to:', data.userEmail);
       
       const template = this.createEmailTemplate(data);
       
@@ -46,14 +45,11 @@ export class EmailNotificationService {
       });
 
       if (error) {
-        console.error('❌ Failed to send email notification:', error);
         return false;
       }
 
-      console.log('✅ Email notification sent successfully');
       return true;
     } catch (error: any) {
-      console.error('❌ Error sending email notification:', error);
       return false;
     }
   }
@@ -71,7 +67,6 @@ export class EmailNotificationService {
           failed++;
         }
       } catch (error) {
-        console.error('❌ Failed to send bulk notification:', error);
         failed++;
       }
     }
@@ -247,7 +242,6 @@ This is an automated notification from the Caava Group Assets Management System.
     try {
       return true;
     } catch (error) {
-      console.error('❌ Error checking email configuration:', error);
       return false;
     }
   }
@@ -262,7 +256,6 @@ This is an automated notification from the Caava Group Assets Management System.
         notificationTypes: ['success', 'error', 'warning', 'info']
       };
     } catch (error) {
-      console.error('❌ Error getting user email preferences:', error);
       return {
         emailNotifications: true,
         notificationTypes: ['success', 'error', 'warning', 'info']

@@ -16,7 +16,6 @@ export const useSupabase = () => {
       }
       return connected
     } catch (error) {
-      console.error('Connection check failed:', error)
       setIsConnected(false)
       return false
     }
@@ -35,7 +34,6 @@ export const useSupabase = () => {
       }
       return success
     } catch (error) {
-      console.error('Reconnection failed:', error)
       setLastError('Failed to reconnect to database')
       return false
     } finally {
@@ -57,12 +55,10 @@ export const useSupabase = () => {
             result.error.message?.includes('timeout') ||
             result.error.code === 'PGRST301') {
           
-          console.log('Connection error detected, attempting to reconnect...')
           const reconnected = await reconnect()
           
           if (reconnected) {
             // Retry the query
-            console.log('Retrying query after reconnection...')
             return await queryFn()
           }
         }
@@ -70,7 +66,6 @@ export const useSupabase = () => {
       
       return result
     } catch (error) {
-      console.error('Query execution error:', error)
       return { data: null, error }
     }
   }, [reconnect])

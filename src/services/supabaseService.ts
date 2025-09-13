@@ -32,7 +32,6 @@ class SupabaseService {
           // Check connection before retry
           const isConnected = await this.checkConnection();
           if (!isConnected) {
-            console.log('Connection lost, waiting for recovery...');
             await new Promise(resolve => setTimeout(resolve, 2000));
           }
         }

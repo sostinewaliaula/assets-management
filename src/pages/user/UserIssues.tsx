@@ -71,7 +71,6 @@ const UserIssues: React.FC = () => {
         setIssues(enriched);
         setFilteredIssues(enriched);
       } catch (error) {
-        console.error('Error fetching data:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load issues',
@@ -168,10 +167,8 @@ const UserIssues: React.FC = () => {
               ))
           );
         } catch (e) {
-          console.warn('Failed to notify admins/managers', e);
         }
       } catch (e) {
-        console.warn('Failed to create notifications via RPC', e);
       }
 
       addNotification({
@@ -188,7 +185,6 @@ const UserIssues: React.FC = () => {
       setReportIssue({ title: '', description: '', priority: 'Medium', category: 'Other', asset_id: '' });
       setShowReportIssueModal(false);
     } catch (err) {
-      console.error('Error creating issue:', err);
       addNotification({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
       addToast({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
     } finally {

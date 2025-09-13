@@ -136,21 +136,18 @@ export const notificationService = {
         .single();
 
       if (userError || !user) {
-        console.error('❌ Failed to get user details for email:', userError);
         return;
       }
 
       // Check if email notifications are enabled
       const isEmailEnabled = await emailNotificationService.isEmailEnabled();
       if (!isEmailEnabled) {
-        console.log('📧 Email notifications are disabled');
         return;
       }
 
       // Get user email preferences
       const preferences = await emailNotificationService.getUserEmailPreferences(notification.user_id);
       if (!preferences.emailNotifications || !preferences.notificationTypes.includes(notification.type)) {
-        console.log('📧 Email notifications disabled for user or notification type');
         return;
       }
 
@@ -169,7 +166,6 @@ export const notificationService = {
       await emailNotificationService.sendNotificationEmail(emailData);
       
     } catch (error) {
-      console.error('❌ Failed to send email notification:', error);
       // Don't throw error - email failure shouldn't break the notification system
     }
   },
@@ -187,21 +183,18 @@ export const notificationService = {
         .single();
 
       if (userError || !user) {
-        console.error('❌ Failed to get user details for email:', userError);
         return;
       }
 
       // Check if email notifications are enabled
       const isEmailEnabled = await emailNotificationService.isEmailEnabled();
       if (!isEmailEnabled) {
-        console.log('📧 Email notifications are disabled');
         return;
       }
 
       // Get user email preferences
       const preferences = await emailNotificationService.getUserEmailPreferences(userId);
       if (!preferences.emailNotifications || !preferences.notificationTypes.includes(type)) {
-        console.log('📧 Email notifications disabled for user or notification type');
         return;
       }
 
@@ -223,7 +216,6 @@ export const notificationService = {
       await emailNotificationService.sendNotificationEmail(emailData);
       
     } catch (error) {
-      console.error('❌ Failed to send email notification:', error);
       // Don't throw error - email failure shouldn't break the notification system
     }
   },
@@ -280,7 +272,6 @@ export const notificationService = {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to send bulk notifications:', error);
       throw error;
     }
   }
@@ -561,7 +552,6 @@ export const commentService = {
   },
 
   async create(comment: Omit<IssueComment, 'id' | 'created_at' | 'updated_at'>): Promise<IssueComment> {
-    console.log('Attempting to create comment with data:', comment);
     
     // Get the user name from the users table
     let userName = 'Unknown User';
@@ -576,7 +566,6 @@ export const commentService = {
         userName = userData.name;
       }
     } catch (error) {
-      console.warn('Could not fetch user name, using default:', error);
     }
     
     const commentData = {
@@ -584,7 +573,6 @@ export const commentService = {
       user_name: userName
     };
     
-    console.log('Creating comment with full data:', commentData);
     
     const { data, error } = await supabase
       .from('issue_comments')
@@ -593,23 +581,14 @@ export const commentService = {
       .single()
     
     if (error) {
-      console.error('Supabase error creating comment:', error);
-      console.error('Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
       throw error;
     }
     
-    console.log('Comment created successfully:', data);
     try { await auditService.write({ user_id: (data as any).user_id || null, action: 'comment.create', entity_type: 'issue_comment', entity_id: (data as any).id, details: { after: data } }); } catch {}
     return data
   },
 
   async update(id: string, updates: Partial<IssueComment>): Promise<IssueComment> {
-    console.log('Updating comment:', id, 'with updates:', updates);
     
     const { data, error } = await supabase
       .from('issue_comments')
@@ -619,17 +598,14 @@ export const commentService = {
       .single()
     
     if (error) {
-      console.error('Supabase error updating comment:', error);
       throw error;
     }
     
-    console.log('Comment updated successfully in service:', data);
     try { await auditService.write({ user_id: (data as any).user_id || null, action: 'comment.update', entity_type: 'issue_comment', entity_id: id, details: { updates } }); } catch {}
     return data
   },
 
   async delete(id: string): Promise<void> {
-    console.log('Deleting comment:', id);
     
     const { error } = await supabase
       .from('issue_comments')
@@ -637,11 +613,9 @@ export const commentService = {
       .eq('id', id)
     
     if (error) {
-      console.error('Supabase error deleting comment:', error);
       throw error;
     }
     
-    console.log('Comment deleted successfully in service');
   },
 
   // Test function to check table structure
@@ -653,12 +627,9 @@ export const commentService = {
         .limit(1)
       
       if (error) {
-        console.error('Error testing table structure:', error);
       } else {
-        console.log('Table structure test successful. Sample data:', data);
       }
     } catch (error) {
-      console.error('Exception testing table structure:', error);
     }
   }
 }

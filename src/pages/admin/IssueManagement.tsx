@@ -62,7 +62,6 @@ const IssueManagement: React.FC = () => {
         setUsers(usersData);
         setDepartments(departmentsData);
       } catch (error) {
-        console.error('Error fetching data:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load issues',
@@ -82,9 +81,6 @@ const IssueManagement: React.FC = () => {
 
   // Debug user object
   useEffect(() => {
-    console.log('Current user object:', user);
-    console.log('User ID:', user?.id);
-    console.log('User email:', user?.email);
     
     // Test table structure on load
     commentService.testTableStructure();
@@ -159,7 +155,6 @@ const IssueManagement: React.FC = () => {
       const commentsData = await commentService.getByIssue(issueId);
       setComments(commentsData);
     } catch (error) {
-      console.error('Error fetching comments:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to load comments',
@@ -179,7 +174,6 @@ const IssueManagement: React.FC = () => {
 
   const handleAddComment = async () => {
     if (!selectedIssue || !newComment.trim() || !user) {
-      console.log('Validation failed:', { selectedIssue: !!selectedIssue, comment: newComment.trim(), user: !!user });
       if (!user) {
         addNotification({
           title: 'Error',
@@ -191,13 +185,6 @@ const IssueManagement: React.FC = () => {
     }
     
     try {
-      console.log('Creating comment with data:', {
-        issue_id: selectedIssue.id,
-        user_id: user.id,
-        user_name: user.name,
-        content: newComment.trim()
-      });
-      
       const newCommentData = await commentService.create({
         issue_id: selectedIssue.id,
         user_id: user.id,
@@ -232,7 +219,6 @@ const IssueManagement: React.FC = () => {
           }
         }
       } catch (e) {
-        console.warn('Failed to send comment notifications', e);
       }
       
       addNotification({
@@ -246,14 +232,6 @@ const IssueManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error: any) {
-      console.error('Error adding comment:', error);
-      console.error('Error details:', {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code
-      });
-      
       let errorMessage = 'Failed to add comment';
       if (error.message) {
         errorMessage = error.message;
@@ -273,13 +251,11 @@ const IssueManagement: React.FC = () => {
     if (!editCommentContent.trim()) return;
     
     try {
-      console.log('Editing comment:', commentId, 'with content:', editCommentContent.trim());
       
       const updatedComment = await commentService.update(commentId, {
         content: editCommentContent.trim()
       });
       
-      console.log('Comment updated successfully:', updatedComment);
       
       // Update the comment in the local state
       setComments(comments.map(comment => 
@@ -295,7 +271,6 @@ const IssueManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error updating comment:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to update comment',
@@ -306,11 +281,9 @@ const IssueManagement: React.FC = () => {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      console.log('Deleting comment:', commentId);
       
       await commentService.delete(commentId);
       
-      console.log('Comment deleted successfully');
       
       // Remove the comment from the local state
       setComments(comments.filter(comment => comment.id !== commentId));
@@ -321,7 +294,6 @@ const IssueManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error deleting comment:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to delete comment',
@@ -377,7 +349,6 @@ const IssueManagement: React.FC = () => {
           });
           setComments(prev => [...prev, createdSystemComment]);
         } catch (commentError) {
-          console.error('Failed to create system status comment:', commentError);
         }
       }
 
@@ -403,7 +374,6 @@ const IssueManagement: React.FC = () => {
           }
         }
       } catch (e) {
-        console.warn('Failed to send status update notifications', e);
       }
       
       addNotification({
@@ -417,7 +387,6 @@ const IssueManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error: any) {
-      console.error('Error updating status:', error);
       addNotification({
         title: 'Error',
         message: error?.message || 'Failed to update issue status',

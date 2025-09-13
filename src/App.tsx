@@ -76,13 +76,11 @@ function App() {
           .select('count', { count: 'exact', head: true });
         
         if (error) {
-          console.error('Database connection check failed:', error);
           setDbStatus('error');
         } else {
           setDbStatus('connected');
         }
       } catch (error) {
-        console.error('Database connection error:', error);
         setDbStatus('error');
       }
     };

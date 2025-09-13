@@ -41,7 +41,6 @@ const ResetPassword: React.FC = () => {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error checking session:', error);
           setIsValidToken(false);
         } else if (session?.user) {
           // User has a valid session from recovery link
@@ -59,7 +58,6 @@ const ResetPassword: React.FC = () => {
             });
             
             if (setSessionError) {
-              console.error('Error setting session:', setSessionError);
               setIsValidToken(false);
             } else {
               setIsValidToken(true);
@@ -69,7 +67,6 @@ const ResetPassword: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('Error checking recovery token:', error);
         setIsValidToken(false);
       } finally {
         setIsCheckingToken(false);

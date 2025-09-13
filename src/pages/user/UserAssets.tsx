@@ -119,7 +119,6 @@ const UserAssets: React.FC = () => {
         setAssets(data as Asset[]);
         setFilteredAssets(data as Asset[]);
       } catch (error) {
-        console.error('Error fetching assets:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load assets',
@@ -244,7 +243,6 @@ const UserAssets: React.FC = () => {
             ))
         );
       } catch (notifyErr) {
-        console.warn('Failed to send creation notifications', notifyErr);
       }
 
       // Reset form and close modal
@@ -269,7 +267,6 @@ const UserAssets: React.FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error reporting issue:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to report issue. Please try again.',
@@ -296,7 +293,6 @@ const UserAssets: React.FC = () => {
     e.preventDefault();
     if (!user) return;
     if (!newAssetRequest.type || !newAssetRequest.urgency || !newAssetRequest.reason) {
-      console.error('Missing required fields:', newAssetRequest);
       addNotification({
         title: 'Error',
         message: 'Please fill in all required fields.',
@@ -311,15 +307,6 @@ const UserAssets: React.FC = () => {
     }
     setIsSubmittingRequest(true);
     try {
-      console.log('User ID:', user.id);
-      console.log('Insert payload:', {
-        user_id: user.id,
-        title: `Request for ${newAssetRequest.type}`,
-        description: newAssetRequest.reason,
-        type: newAssetRequest.type,
-        priority: newAssetRequest.urgency,
-        department_id: null
-      });
       await assetRequestsService.create({
         user_id: user.id,
         title: `Request for ${newAssetRequest.type}`,
@@ -347,7 +334,6 @@ const UserAssets: React.FC = () => {
           'info'
         );
       } catch (e) {
-        console.warn('Failed to send asset request notifications', e);
       }
 
       addNotification({
@@ -368,7 +354,6 @@ const UserAssets: React.FC = () => {
       });
       setShowRequestForm(false);
     } catch (error) {
-      console.error('Error submitting asset request:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to submit asset request. Please try again.',

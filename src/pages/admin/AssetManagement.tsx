@@ -94,7 +94,6 @@ const AssetManagement: React.FC = () => {
       // reflect locally if we have departments loaded
       setDepartments(prev => prev.map(d => d.id === departmentId ? { ...d, asset_count, asset_value: `KSh ${totalValue.toLocaleString()}` } as any : d));
     } catch (e) {
-      console.warn('Failed to recompute department stats', e);
     }
   };
 
@@ -112,7 +111,6 @@ const AssetManagement: React.FC = () => {
       setDepartments(departmentsData);
       setUsers(usersData);
       } catch (error) {
-      console.error('Error fetching data:', error);
         addNotification({
           title: 'Error',
         message: 'Failed to load asset data. Please check your database connection.',
@@ -452,7 +450,6 @@ const AssetManagement: React.FC = () => {
           );
         }
       } catch (e) {
-        console.warn('Failed to notify assigned user for new asset', e);
       }
 
     // Close the modal and reset the form
@@ -489,7 +486,6 @@ const AssetManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Error adding asset:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to add asset. Please check your database connection.',
@@ -544,7 +540,6 @@ const AssetManagement: React.FC = () => {
           );
         }
       } catch (e) {
-        console.warn('Failed to notify user about asset assignment change', e);
       }
 
       // Close the modal and reset the editing state
@@ -563,7 +558,6 @@ const AssetManagement: React.FC = () => {
       type: 'success'
     });
     } catch (error) {
-      console.error('Error updating asset:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to update asset. Please check your database connection.',
@@ -607,7 +601,6 @@ const AssetManagement: React.FC = () => {
     setShowDeleteModal(false);
     setSelectedAsset(null);
     } catch (error) {
-      console.error('Error deleting asset:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to delete asset. Please check your database connection.',

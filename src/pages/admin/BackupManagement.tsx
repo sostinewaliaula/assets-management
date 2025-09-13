@@ -60,7 +60,6 @@ const BackupManagement: React.FC = () => {
       const stats = await backupService.getSystemStats();
       setSystemStats(stats);
     } catch (error) {
-      console.error('Failed to load system stats:', error);
     }
   };
 
@@ -69,7 +68,6 @@ const BackupManagement: React.FC = () => {
       const backups = await backupService.getStoredBackups();
       setStoredBackups(backups);
     } catch (error) {
-      console.error('Failed to load stored backups:', error);
     }
   };
 
@@ -104,7 +102,6 @@ const BackupManagement: React.FC = () => {
       await loadSystemStats();
       await loadStoredBackups();
     } catch (error) {
-      console.error('Backup creation failed:', error);
       addNotification({
         title: 'Backup Failed',
         message: 'Failed to create system backup. Please try again.',
@@ -125,7 +122,6 @@ const BackupManagement: React.FC = () => {
         type: 'success'
       });
     } catch (error) {
-      console.error('Backup download failed:', error);
       addToast({
         title: 'Download Failed',
         message: 'Failed to download backup. Please try again.',
@@ -146,7 +142,6 @@ const BackupManagement: React.FC = () => {
       
       await loadStoredBackups();
     } catch (error) {
-      console.error('Backup deletion failed:', error);
       addNotification({
         title: 'Delete Failed',
         message: 'Failed to delete backup. Please try again.',
@@ -158,7 +153,6 @@ const BackupManagement: React.FC = () => {
   const handleRestoreBackup = async (backupId: string) => {
     setIsRestoring(true);
     try {
-      console.log('🔄 Starting restore from backup:', backupId);
       
       await backupService.restoreBackup(backupId, restoreOptions);
       
@@ -178,7 +172,6 @@ const BackupManagement: React.FC = () => {
       await loadSystemStats();
       await loadStoredBackups(); // Refresh the backup list
     } catch (error) {
-      console.error('Restore failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       addNotification({
@@ -215,7 +208,6 @@ const BackupManagement: React.FC = () => {
     
     setIsRestoring(true);
     try {
-      console.log('📁 Starting upload and restore from file:', selectedFile.name);
       
       await backupService.uploadAndRestore(selectedFile, restoreOptions);
       
@@ -236,7 +228,6 @@ const BackupManagement: React.FC = () => {
       await loadSystemStats();
       await loadStoredBackups();
     } catch (error) {
-      console.error('Upload and restore failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       addNotification({

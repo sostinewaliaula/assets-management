@@ -73,7 +73,6 @@ export const AuthProvider: React.FC<{
         .single();
 
       if (error || !profile) {
-        console.error('Error fetching user profile:', error);
         return null;
       }
 
@@ -88,7 +87,6 @@ export const AuthProvider: React.FC<{
         is_active: profile.is_active
       };
     } catch (error) {
-      console.error('Error converting user:', error);
       return null;
     }
   };
@@ -101,7 +99,6 @@ export const AuthProvider: React.FC<{
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
           setIsLoading(false);
           return;
         }
@@ -111,7 +108,6 @@ export const AuthProvider: React.FC<{
           setUser(userData);
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
       } finally {
         setIsLoading(false);
       }
@@ -122,7 +118,6 @@ export const AuthProvider: React.FC<{
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
         if (event === 'INITIAL_SESSION') {
           if (session?.user) {
             const userData = await convertSupabaseUser(session.user);
@@ -176,7 +171,6 @@ export const AuthProvider: React.FC<{
       }
       return {};
     } catch (error: any) {
-      console.error('Login failed:', error);
       try { await auditService.write({ user_id: null, action: 'auth.sign_in_failed', entity_type: 'auth', entity_id: null, details: { email, error: String(error?.message || error) } }); } catch {}
       throw error;
     } finally {
@@ -253,11 +247,9 @@ export const AuthProvider: React.FC<{
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Logout error:', error);
       }
       setUser(null);
     } catch (error) {
-      console.error('Logout failed:', error);
       throw error;
     }
   };
@@ -265,21 +257,17 @@ export const AuthProvider: React.FC<{
   // Forgot password function
   const forgotPassword = async (email: string) => {
     try {
-      console.log('🔐 Attempting to send password reset email to:', email);
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
 
       if (error) {
-        console.error('❌ Supabase forgot password error:', error);
         throw error;
       }
       try { await auditService.write({ user_id: null, action: 'auth.password_reset_requested', entity_type: 'auth', entity_id: null, details: { email } }); } catch {}
       
-      console.log('✅ Password reset email sent successfully');
     } catch (error) {
-      console.error('❌ Forgot password failed:', error);
       throw error;
     }
   };
@@ -287,21 +275,17 @@ export const AuthProvider: React.FC<{
   // Reset password function
   const resetPassword = async (password: string) => {
     try {
-      console.log('🔐 Attempting to reset password');
       
       const { error } = await supabase.auth.updateUser({
         password: password
       });
 
       if (error) {
-        console.error('❌ Supabase reset password error:', error);
         throw error;
       }
       try { await auditService.write({ user_id: user?.id || null, action: 'auth.password_reset', entity_type: 'auth', entity_id: user?.id || null, details: {} }); } catch {}
       
-      console.log('✅ Password reset successfully');
     } catch (error) {
-      console.error('❌ Reset password failed:', error);
       throw error;
     }
   };

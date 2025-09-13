@@ -57,7 +57,6 @@ serve(async (req)=>{
       throw new Error('Missing required email data');
     }
     await sendEmailWithSendGrid(emailData);
-    console.log(`✅ Email sent successfully to ${emailData.to} for notification ${emailData.notificationId}`);
     return new Response(JSON.stringify({
       success: true,
       message: 'Email sent successfully',
@@ -71,7 +70,6 @@ serve(async (req)=>{
       status: 200
     });
   } catch (error) {
-    console.error('❌ Error sending email:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error.message,

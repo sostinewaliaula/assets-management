@@ -115,7 +115,6 @@ const DepartmentManagement: React.FC = () => {
         setFilteredDepartments(refreshed);
       }
       } catch (error) {
-        console.error('Error fetching department data:', error);
         addNotification({
           title: 'Error',
         message: 'Failed to load department data. Please check your database connection.',
@@ -218,7 +217,6 @@ const DepartmentManagement: React.FC = () => {
       type: 'success'
     });
     } catch (error) {
-      console.error('Error adding department:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to add department. Please check your database connection.',
@@ -280,7 +278,6 @@ const DepartmentManagement: React.FC = () => {
       type: 'success'
     });
     } catch (error) {
-      console.error('Error updating department:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to update department. Please check your database connection.',
@@ -323,7 +320,6 @@ const DepartmentManagement: React.FC = () => {
     setShowDeleteModal(false);
     setSelectedDepartment(null);
     } catch (error) {
-      console.error('Error deleting department:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to delete department. Please check your database connection.',

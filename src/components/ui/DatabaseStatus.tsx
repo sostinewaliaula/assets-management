@@ -18,7 +18,6 @@ const DatabaseStatus: React.FC<DatabaseStatusProps> = ({ className = '' }) => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError) {
-        console.error('Supabase connection error:', sessionError);
         setStatus('error');
         setLastChecked(new Date());
         return;
@@ -37,14 +36,12 @@ const DatabaseStatus: React.FC<DatabaseStatusProps> = ({ className = '' }) => {
         .select('id', { count: 'exact', head: true });
       
       if (error) {
-        console.error('Database access error:', error);
         setStatus('error');
       } else {
         setStatus('connected');
       }
       setLastChecked(new Date());
     } catch (error) {
-      console.error('Database connection failed:', error);
       setStatus('error');
       setLastChecked(new Date());
     }

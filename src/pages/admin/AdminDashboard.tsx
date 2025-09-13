@@ -42,7 +42,6 @@ const AdminDashboard: React.FC = () => {
           hasAnnouncedLoaded.current = true;
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
         addToast({
           title: 'Error',
           message: 'Failed to load dashboard data.',

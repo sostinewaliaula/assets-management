@@ -46,7 +46,6 @@ const AssetDetails: React.FC = () => {
       const totalValue = assetsInDept.reduce((sum, a) => sum + (Number((a as any).current_value) || 0), 0);
       await departmentService.update(departmentId, { asset_count, asset_value: formatKES(totalValue) } as any);
     } catch (e) {
-      console.warn('Failed to recompute department stats', e);
     }
   };
 
@@ -82,7 +81,6 @@ const AssetDetails: React.FC = () => {
               const userData = await userService.getById(assetData.assigned_to);
               setAssignedUser(userData);
             } catch (error) {
-              console.error('Error fetching assigned user:', error);
             }
           }
           
@@ -92,7 +90,6 @@ const AssetDetails: React.FC = () => {
               const deptData = await departmentService.getById(assetData.department_id);
               setDepartment(deptData);
             } catch (error) {
-              console.error('Error fetching department:', error);
             }
           }
           // Fetch issues for this asset
@@ -104,16 +101,13 @@ const AssetDetails: React.FC = () => {
               .order('created_at', { ascending: false });
             
             if (issuesError) {
-              console.error('Error fetching issues:', issuesError);
             } else {
               setIssues(issuesData || []);
             }
           } catch (error) {
-            console.error('Error fetching issues:', error);
           }
         }
       } catch (error) {
-        console.error('Error fetching asset details:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load asset details',
@@ -301,7 +295,6 @@ const AssetDetails: React.FC = () => {
               ))
           );
         } catch (notifyErr) {
-          console.warn('Failed to send creation notifications', notifyErr);
         }
         
         // Reset form and close modal
@@ -314,7 +307,6 @@ const AssetDetails: React.FC = () => {
         setShowIssueForm(false);
       }
     } catch (error) {
-      console.error('Error creating issue:', error);
       addNotification({
         title: 'Error',
         message: 'Failed to create issue. Please try again.',

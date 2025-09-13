@@ -156,7 +156,6 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ message: 'Backup created and emailed successfully' }), { status: 200 })
   } catch (error) {
-    console.error('❌ Backup error:', error)
     return new Response(
       JSON.stringify({ error: error.message, stack: error.stack }),
       { status: 500, headers: { "Content-Type": "application/json" } }

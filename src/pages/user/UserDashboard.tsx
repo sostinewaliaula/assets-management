@@ -69,7 +69,6 @@ const UserDashboard: React.FC = () => {
           duration: 2000
         });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load dashboard data',
@@ -145,10 +144,8 @@ const UserDashboard: React.FC = () => {
               ))
           );
         } catch (e) {
-          console.warn('Failed to notify admins/managers', e);
         }
       } catch (e) {
-        console.warn('Failed to create notifications via RPC', e);
       }
 
       addNotification({
@@ -165,7 +162,6 @@ const UserDashboard: React.FC = () => {
       setReportIssue({ title: '', description: '', priority: 'Medium', category: 'Other', asset_id: '' });
       setShowReportIssueModal(false);
     } catch (error) {
-      console.error('Error creating issue:', error);
       addNotification({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
       addToast({ title: 'Error', message: 'Failed to submit issue.', type: 'error' });
     } finally {
@@ -204,12 +200,11 @@ const UserDashboard: React.FC = () => {
           `Your asset request "${assetRequest.title}" has been submitted for review.`,
           'info'
         );
-      } catch (e) { console.warn('Failed to send asset request notifications', e); }
+      } catch (e) { /* Failed to send asset request notifications */ }
       setAssetRequest({ title: '', description: '', type: 'Laptop', priority: 'Medium' });
       setShowRequestAssetModal(false);
       addToast({ title: 'Request Submitted', message: 'Your asset request has been submitted.', type: 'success' });
     } catch (e) {
-      console.error('Error submitting asset request:', e);
       addToast({ title: 'Error', message: 'Failed to submit asset request.', type: 'error' });
     } finally {
       setIsSubmittingRequest(false);

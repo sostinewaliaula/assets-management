@@ -65,7 +65,6 @@ export class BackupService {
    */
   async createBackup(name: string, description?: string): Promise<StoredBackup> {
     try {
-      console.log('🔄 Starting system backup...');
 
       // Fetch all data from all tables
       const [
@@ -139,19 +138,9 @@ export class BackupService {
         throw new Error('Failed to store backup: ' + storeError.message);
       }
 
-      console.log('✅ Backup created and stored successfully:', {
-        id: storedBackup.id,
-        name: storedBackup.name,
-        timestamp: storedBackup.timestamp,
-        assets: storedBackup.metadata.totalAssets,
-        users: storedBackup.metadata.totalUsers,
-        issues: storedBackup.metadata.totalIssues,
-        size: this.formatBytes(storedBackup.metadata.backupSize)
-      });
 
       return storedBackup;
     } catch (error) {
-      console.error('❌ Backup creation failed:', error);
       throw error;
     }
   }
@@ -172,7 +161,6 @@ export class BackupService {
 
       return backups || [];
     } catch (error) {
-      console.error('Failed to get stored backups:', error);
       return [];
     }
   }
@@ -206,7 +194,6 @@ export class BackupService {
         version: backup.version
       };
     } catch (error) {
-      console.error('Failed to get backup by ID:', error);
       return null;
     }
   }
@@ -237,9 +224,7 @@ export class BackupService {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      console.log('✅ Backup downloaded:', finalFilename);
     } catch (error) {
-      console.error('❌ Backup download failed:', error);
       throw error;
     }
   }
@@ -258,9 +243,7 @@ export class BackupService {
         throw new Error('Failed to delete backup: ' + error.message);
       }
 
-      console.log('✅ Backup deleted:', backupId);
     } catch (error) {
-      console.error('❌ Backup deletion failed:', error);
       throw error;
     }
   }
@@ -274,7 +257,6 @@ export class BackupService {
     skipNotifications?: boolean;
   } = {}): Promise<void> {
     try {
-      console.log('🔄 Starting system restore...');
 
       const backupData = await this.getBackupById(backupId);
       if (!backupData) {
@@ -284,17 +266,8 @@ export class BackupService {
       // Validate backup data structure
       this.validateBackupData(backupData);
 
-      console.log('📋 Backup data found:', {
-        name: backupData.name,
-        timestamp: backupData.timestamp,
-        assets: backupData.tables.assets.length,
-        users: backupData.tables.users.length,
-        departments: backupData.tables.departments.length,
-        issues: backupData.tables.issues.length
-      });
 
       if (options.clearExisting) {
-        console.log('🗑️ Clearing existing data...');
         await this.clearAllData();
       }
 
@@ -303,13 +276,11 @@ export class BackupService {
 
       // 1. Restore departments first (no dependencies)
       if (backupData.tables.departments.length > 0) {
-        console.log('📁 Restoring departments...');
         const { data: deptResult, error: deptError } = await supabase
           .from('departments')
           .upsert(backupData.tables.departments, { onConflict: 'id' });
         
         if (deptError) {
-          console.error('❌ Department restore failed:', deptError);
           throw new Error(`Failed to restore departments: ${deptError.message}`);
         }
         results.push({ table: 'departments', count: deptResult?.length || 0 });
@@ -317,13 +288,11 @@ export class BackupService {
 
       // 2. Restore users (depends on departments)
       if (backupData.tables.users.length > 0 && !options.skipUsers) {
-        console.log('👥 Restoring users...');
         const { data: userResult, error: userError } = await supabase
           .from('users')
           .upsert(backupData.tables.users, { onConflict: 'id' });
         
         if (userError) {
-          console.error('❌ User restore failed:', userError);
           throw new Error(`Failed to restore users: ${userError.message}`);
         }
         results.push({ table: 'users', count: userResult?.length || 0 });
@@ -331,13 +300,11 @@ export class BackupService {
 
       // 3. Restore assets (depends on users and departments)
       if (backupData.tables.assets.length > 0) {
-        console.log('💻 Restoring assets...');
         const { data: assetResult, error: assetError } = await supabase
           .from('assets')
           .upsert(backupData.tables.assets, { onConflict: 'id' });
         
         if (assetError) {
-          console.error('❌ Asset restore failed:', assetError);
           throw new Error(`Failed to restore assets: ${assetError.message}`);
         }
         results.push({ table: 'assets', count: assetResult?.length || 0 });
@@ -345,13 +312,11 @@ export class BackupService {
 
       // 4. Restore issues (depends on assets and users)
       if (backupData.tables.issues.length > 0) {
-        console.log('🐛 Restoring issues...');
         const { data: issueResult, error: issueError } = await supabase
           .from('issues')
           .upsert(backupData.tables.issues, { onConflict: 'id' });
         
         if (issueError) {
-          console.error('❌ Issue restore failed:', issueError);
           throw new Error(`Failed to restore issues: ${issueError.message}`);
         }
         results.push({ table: 'issues', count: issueResult?.length || 0 });
@@ -359,13 +324,11 @@ export class BackupService {
 
       // 5. Restore asset requests (depends on users)
       if (backupData.tables.asset_requests.length > 0) {
-        console.log('📋 Restoring asset requests...');
         const { data: requestResult, error: requestError } = await supabase
           .from('asset_requests')
           .upsert(backupData.tables.asset_requests, { onConflict: 'id' });
         
         if (requestError) {
-          console.error('❌ Asset request restore failed:', requestError);
           throw new Error(`Failed to restore asset requests: ${requestError.message}`);
         }
         results.push({ table: 'asset_requests', count: requestResult?.length || 0 });
@@ -374,36 +337,29 @@ export class BackupService {
       // 6. Restore notifications and preferences (optional)
       if (!options.skipNotifications) {
         if (backupData.tables.notifications.length > 0) {
-          console.log('🔔 Restoring notifications...');
           const { data: notifResult, error: notifError } = await supabase
             .from('notifications')
             .upsert(backupData.tables.notifications, { onConflict: 'id' });
           
           if (notifError) {
-            console.error('❌ Notification restore failed:', notifError);
             throw new Error(`Failed to restore notifications: ${notifError.message}`);
           }
           results.push({ table: 'notifications', count: notifResult?.length || 0 });
         }
 
         if (backupData.tables.user_notification_preferences.length > 0) {
-          console.log('⚙️ Restoring notification preferences...');
           const { data: prefResult, error: prefError } = await supabase
             .from('user_notification_preferences')
             .upsert(backupData.tables.user_notification_preferences, { onConflict: 'id' });
           
           if (prefError) {
-            console.error('❌ Notification preferences restore failed:', prefError);
             throw new Error(`Failed to restore notification preferences: ${prefError.message}`);
           }
           results.push({ table: 'user_notification_preferences', count: prefResult?.length || 0 });
         }
       }
 
-      console.log('✅ System restore completed successfully');
-      console.log('📊 Restore summary:', results);
     } catch (error) {
-      console.error('❌ System restore failed:', error);
       throw error;
     }
   }
@@ -422,26 +378,20 @@ export class BackupService {
       'departments'
     ];
 
-    console.log('🗑️ Clearing all data from system tables...');
     
     for (const table of tables) {
       try {
-        console.log(`🗑️ Clearing table: ${table}`);
         const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
         
         if (error) {
-          console.error(`❌ Failed to clear table ${table}:`, error);
           throw new Error(`Failed to clear table ${table}: ${error.message}`);
         }
         
-        console.log(`✅ Cleared table: ${table}`);
       } catch (error) {
-        console.error(`❌ Error clearing table ${table}:`, error);
         throw error;
       }
     }
     
-    console.log('✅ All data cleared successfully');
   }
 
   /**
@@ -479,7 +429,6 @@ export class BackupService {
     skipNotifications?: boolean;
   }): Promise<void> {
     try {
-      console.log('📁 Processing uploaded backup file...');
       
       const text = await file.text();
       const backupData: BackupData = JSON.parse(text);
@@ -487,17 +436,8 @@ export class BackupService {
       // Validate backup data structure
       this.validateBackupData(backupData);
 
-      console.log('📋 Uploaded backup data:', {
-        name: backupData.name,
-        timestamp: backupData.timestamp,
-        assets: backupData.tables.assets?.length || 0,
-        users: backupData.tables.users?.length || 0,
-        departments: backupData.tables.departments?.length || 0,
-        issues: backupData.tables.issues?.length || 0
-      });
 
       if (options?.clearExisting) {
-        console.log('🗑️ Clearing existing data...');
         await this.clearAllData();
       }
 
@@ -506,13 +446,11 @@ export class BackupService {
 
       // 1. Restore departments first (no dependencies)
       if (backupData.tables.departments?.length > 0) {
-        console.log('📁 Restoring departments...');
         const { data: deptResult, error: deptError } = await supabase
           .from('departments')
           .upsert(backupData.tables.departments, { onConflict: 'id' });
         
         if (deptError) {
-          console.error('❌ Department restore failed:', deptError);
           throw new Error(`Failed to restore departments: ${deptError.message}`);
         }
         results.push({ table: 'departments', count: deptResult?.length || 0 });
@@ -520,13 +458,11 @@ export class BackupService {
 
       // 2. Restore users (depends on departments)
       if (backupData.tables.users?.length > 0 && !options?.skipUsers) {
-        console.log('👥 Restoring users...');
         const { data: userResult, error: userError } = await supabase
           .from('users')
           .upsert(backupData.tables.users, { onConflict: 'id' });
         
         if (userError) {
-          console.error('❌ User restore failed:', userError);
           throw new Error(`Failed to restore users: ${userError.message}`);
         }
         results.push({ table: 'users', count: userResult?.length || 0 });
@@ -534,13 +470,11 @@ export class BackupService {
 
       // 3. Restore assets (depends on users and departments)
       if (backupData.tables.assets?.length > 0) {
-        console.log('💻 Restoring assets...');
         const { data: assetResult, error: assetError } = await supabase
           .from('assets')
           .upsert(backupData.tables.assets, { onConflict: 'id' });
         
         if (assetError) {
-          console.error('❌ Asset restore failed:', assetError);
           throw new Error(`Failed to restore assets: ${assetError.message}`);
         }
         results.push({ table: 'assets', count: assetResult?.length || 0 });
@@ -548,13 +482,11 @@ export class BackupService {
 
       // 4. Restore issues (depends on assets and users)
       if (backupData.tables.issues?.length > 0) {
-        console.log('🐛 Restoring issues...');
         const { data: issueResult, error: issueError } = await supabase
           .from('issues')
           .upsert(backupData.tables.issues, { onConflict: 'id' });
         
         if (issueError) {
-          console.error('❌ Issue restore failed:', issueError);
           throw new Error(`Failed to restore issues: ${issueError.message}`);
         }
         results.push({ table: 'issues', count: issueResult?.length || 0 });
@@ -562,13 +494,11 @@ export class BackupService {
 
       // 5. Restore asset requests (depends on users)
       if (backupData.tables.asset_requests?.length > 0) {
-        console.log('📋 Restoring asset requests...');
         const { data: requestResult, error: requestError } = await supabase
           .from('asset_requests')
           .upsert(backupData.tables.asset_requests, { onConflict: 'id' });
         
         if (requestError) {
-          console.error('❌ Asset request restore failed:', requestError);
           throw new Error(`Failed to restore asset requests: ${requestError.message}`);
         }
         results.push({ table: 'asset_requests', count: requestResult?.length || 0 });
@@ -577,36 +507,29 @@ export class BackupService {
       // 6. Restore notifications and preferences (optional)
       if (!options?.skipNotifications) {
         if (backupData.tables.notifications?.length > 0) {
-          console.log('🔔 Restoring notifications...');
           const { data: notifResult, error: notifError } = await supabase
             .from('notifications')
             .upsert(backupData.tables.notifications, { onConflict: 'id' });
           
           if (notifError) {
-            console.error('❌ Notification restore failed:', notifError);
             throw new Error(`Failed to restore notifications: ${notifError.message}`);
           }
           results.push({ table: 'notifications', count: notifResult?.length || 0 });
         }
 
         if (backupData.tables.user_notification_preferences?.length > 0) {
-          console.log('⚙️ Restoring notification preferences...');
           const { data: prefResult, error: prefError } = await supabase
             .from('user_notification_preferences')
             .upsert(backupData.tables.user_notification_preferences, { onConflict: 'id' });
           
           if (prefError) {
-            console.error('❌ Notification preferences restore failed:', prefError);
             throw new Error(`Failed to restore notification preferences: ${prefError.message}`);
           }
           results.push({ table: 'user_notification_preferences', count: prefResult?.length || 0 });
         }
       }
 
-      console.log('✅ Upload and restore completed successfully');
-      console.log('📊 Restore summary:', results);
     } catch (error) {
-      console.error('❌ Backup upload and restore failed:', error);
       throw error;
     }
   }
@@ -627,7 +550,6 @@ export class BackupService {
     // Store in localStorage for persistence
     localStorage.setItem('backupSchedules', JSON.stringify(this.backupSchedules));
     
-    console.log('✅ Backup schedule created:', newSchedule);
     return newSchedule;
   }
 
@@ -648,7 +570,6 @@ export class BackupService {
   async deleteBackupSchedule(scheduleId: string): Promise<void> {
     this.backupSchedules = this.backupSchedules.filter(s => s.id !== scheduleId);
     localStorage.setItem('backupSchedules', JSON.stringify(this.backupSchedules));
-    console.log('✅ Backup schedule deleted:', scheduleId);
   }
 
   /**
@@ -689,7 +610,6 @@ export class BackupService {
       const nextBackup = new Date(schedule.nextBackup || '');
       if (now >= nextBackup) {
         try {
-          console.log(`🔄 Executing scheduled backup: ${schedule.id}`);
           const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
           const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
           await this.createBackup(
@@ -703,9 +623,7 @@ export class BackupService {
           
           localStorage.setItem('backupSchedules', JSON.stringify(this.backupSchedules));
           
-          console.log(`✅ Scheduled backup completed: ${schedule.id}`);
         } catch (error) {
-          console.error(`❌ Scheduled backup failed: ${schedule.id}`, error);
         }
       }
     }
@@ -758,7 +676,6 @@ export class BackupService {
         lastBackup
       };
     } catch (error) {
-      console.error('Failed to get system stats:', error);
       return {
         totalAssets: 0,
         totalUsers: 0,

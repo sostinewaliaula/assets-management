@@ -13,13 +13,11 @@ export const useConnectionStatus = () => {
         .select('count', { count: 'exact', head: true });
       
       if (error) {
-        console.error('Connection check failed:', error);
         setIsConnected(false);
       } else {
         setIsConnected(true);
       }
     } catch (error) {
-      console.error('Connection error:', error);
       setIsConnected(false);
     } finally {
       setIsChecking(false);

@@ -90,7 +90,6 @@ const UserManagement: React.FC = () => {
           .order('name');
         
         if (deptError) {
-          console.error('Error fetching departments:', deptError);
         } else {
           setDepartments((deptData as Array<{ id: string; name: string; parent_id: string | null }>) || []);
           // Set default parent department to first root (Turnkey, Agencify, Caava AI)
@@ -98,7 +97,6 @@ const UserManagement: React.FC = () => {
           if (roots.length > 0) setSelectedParentDepartment(roots[0].id);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
         addNotification({
           title: 'Error',
           message: 'Failed to load data',
@@ -178,7 +176,6 @@ const UserManagement: React.FC = () => {
       });
       addToast({ title: 'Success', message: 'User created.', type: 'success' });
     } catch (error: any) {
-      console.error('Error creating user:', error);
       addNotification({
         title: 'Error',
         message: error.message || 'Failed to create user. Please try again.',
@@ -226,7 +223,6 @@ const UserManagement: React.FC = () => {
       });
       addToast({ title: 'Success', message: 'User updated.', type: 'success' });
     } catch (error: any) {
-      console.error('Error updating user:', error);
       addNotification({
         title: 'Error',
         message: error.message || 'Failed to update user. Please try again.',
@@ -252,7 +248,6 @@ const UserManagement: React.FC = () => {
       setShowDeleteModal(false);
       setEditingUser(null);
     } catch (error: any) {
-      console.error('Error deleting user:', error);
       addNotification({ title: 'Error', message: error.message || 'Failed to delete user. Please try again.', type: 'error' });
       addToast({ title: 'Error', message: 'Failed to delete user.', type: 'error' });
     }

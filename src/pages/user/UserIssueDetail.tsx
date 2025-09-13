@@ -101,7 +101,6 @@ const UserIssueDetail: React.FC = () => {
           );
         }
       } catch (notifyErr) {
-        console.warn('Notification dispatch failed:', notifyErr);
       }
     } catch (e: any) {
       addNotification({ title: 'Error', message: e?.message || 'Failed to update status', type: 'error' });
@@ -155,7 +154,6 @@ const UserIssueDetail: React.FC = () => {
           );
         }
       } catch (notifyErr) {
-        console.warn('Notification dispatch failed:', notifyErr);
       }
     } catch (e: any) {
       addNotification({ title: 'Error', message: e?.message || 'Failed to add comment', type: 'error' });
